@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "محفظة كاش الحي | بديل محفظة الجيب",
+  "short_name": "كاش الحي",
+  "description": "محفظة التداول المحلي وبديل محفظة الجيب النقدية لتوزيع الرصيد والتحويل الفوري",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#020617",
+  "theme_color": "#020617",
+  "icons": [
+    {
+      "src": "/src/assets/images/pocket_wallet_icon_1792329987812.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any"
+    },
+    {
+      "src": "/src/assets/images/pocket_wallet_icon_1792329987812.jpg",
+      "sizes": "192x192",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}

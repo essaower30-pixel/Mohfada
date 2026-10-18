@@ -1,0 +1,6 @@
+{
+  "name": "محفظة كاش الحي | محفظة التداول المحلي وبديل الكاش",
+  "description": "محفظة تداول محلي بديل لمحفظة الجيب، تتضمن لوحة إدارة لتوزيع الرصيد مقابل كاش، وتحويل بين المستخدمين ودفع بالباركود.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

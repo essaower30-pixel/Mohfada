@@ -27,12 +27,18 @@ import {
   Smartphone,
   MapPin,
   PhoneCall,
+  Coins,
+  Layers,
+  Zap,
+  Share2,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
 import { useCommunityWallet } from '../services/walletState';
 import { LocalTransaction, SavedContact } from '../types/wallet';
 import { AdminProfileModal } from './AdminProfileModal';
+import pocketWalletImg from '../assets/images/pocket_wallet_icon_1792329987812.jpg';
+
 
 interface UserWalletViewProps {
   onOpenBarcodeScan: () => void;
@@ -217,13 +223,22 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
     setTimeout(() => setToastMsg(''), 3000);
   };
 
+  // Active view section so user doesn't have to scroll down on mobile
+  const [activeSection, setActiveSection] = useState<'wallet' | 'quick_pay' | 'history' | 'admin_desk' | 'all'>('wallet');
+
+
+  const handleSelectSection = (section: 'wallet' | 'quick_pay' | 'history' | 'admin_desk' | 'all') => {
+    setActiveSection(section);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleQuickPayContact = (contact: SavedContact) => {
     setPayIdentifier(contact.accountNumber || contact.phone);
     setShowPayModal(true);
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-24 sm:pb-28">
       {/* Toast Alert */}
       {toastMsg && (
         <div className="p-4 rounded-2xl bg-emerald-500/20 border-2 border-emerald-500/40 text-emerald-300 text-xs sm:text-sm font-bold flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-200">
@@ -237,112 +252,313 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
         </div>
       )}
 
-      {/* 1. Main User Profile & Balance Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40 border-2 border-slate-800 p-6 sm:p-8 shadow-2xl">
-        <div className="absolute top-0 right-0 -mr-20 -mt-20 w-72 h-72 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      {/* Top Quick Navigation Pills (For both Desktop & Quick Switching) */}
+      <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-slate-900/90 border border-slate-800 text-xs overflow-x-auto no-scrollbar shadow-md">
+        <button
+          type="button"
+          onClick={() => handleSelectSection('wallet')}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+            activeSection === 'wallet'
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-md font-black'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Wallet className="w-3.5 h-3.5" />
+          <span>المحفظة (الرئيسية)</span>
+        </button>
 
-        <div className="relative z-10 space-y-6">
-          {/* User Personal Information Header */}
-          <div className="flex items-center justify-between pb-5 border-b border-slate-800">
-            <div className="flex items-center gap-3.5">
-              <img
-                src={currentUser.avatar}
-                alt={currentUser.name}
-                className="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-500/50 shadow-md shrink-0"
-              />
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-lg sm:text-xl font-bold text-white">
-                    {currentUser.shopName || currentUser.name}
-                  </h2>
-                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                    {isAdmin
-                      ? 'المدير المعتمد لتزويد الكاش'
-                      : currentUser.role === 'merchant'
-                      ? 'متجر معتمد'
-                      : 'مواطن بالحي'}
-                  </span>
+        <button
+          type="button"
+          onClick={() => handleSelectSection('quick_pay')}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+            activeSection === 'quick_pay'
+              ? 'bg-teal-500 text-slate-950 shadow-md font-black'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Bookmark className="w-3.5 h-3.5" />
+          <span>جهات الدفع السريع</span>
+          {currentUser.savedContacts && currentUser.savedContacts.length > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full bg-slate-950/80 text-teal-300 text-[10px] font-num">
+              {currentUser.savedContacts.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSelectSection('history')}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+            activeSection === 'history'
+              ? 'bg-cyan-500 text-slate-950 shadow-md font-black'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Clock className="w-3.5 h-3.5" />
+          <span>سجل العمليات</span>
+          {userTransactions.length > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full bg-slate-950/80 text-cyan-300 text-[10px] font-num">
+              {userTransactions.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSelectSection('admin_desk')}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+            activeSection === 'admin_desk'
+              ? 'bg-amber-500 text-slate-950 shadow-md font-black'
+              : 'text-slate-400 hover:text-white'
+          }`}
+        >
+          <Building className="w-3.5 h-3.5" />
+          <span>إدارة كاش الحي (مقر الكاش)</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => handleSelectSection('all')}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
+            activeSection === 'all'
+              ? 'bg-slate-700 text-white shadow-md font-black'
+              : 'text-slate-500 hover:text-slate-300'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>عرض الكل</span>
+        </button>
+      </div>
+
+      {/* 1. Main Luxury Pocket Wallet Card (Styled Exactly as the User Image) */}
+      {(activeSection === 'wallet' || activeSection === 'all') && (
+        <div className="relative overflow-hidden rounded-[2.5rem] wallet-leather-card border-2 border-amber-500/50 p-4 sm:p-7 text-slate-100 shadow-2xl transition-all">
+          {/* Subtle background ambient lights */}
+          <div className="absolute top-0 right-1/4 -mt-16 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute bottom-0 left-10 -mb-16 w-60 h-60 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+          {/* Golden Stitched Inner Border (Double Stitch Effect matching the image) */}
+          <div className="relative z-10 wallet-stitched-border rounded-[2rem] p-4 sm:p-6 space-y-5 bg-slate-950/50 backdrop-blur-xs">
+            
+            {/* Top Glowing Community Network Emblem (Emerging from top like the image) */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.4)]">
+                  <Share2 className="w-4 h-4" />
                 </div>
-                <p className="text-xs text-slate-400 font-num font-mono mt-0.5">
-                  حساب رقم: <span className="text-slate-200 font-bold">{currentUser.accountNumber}</span> • هاتف: {currentUser.phone}
-                </p>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black tracking-wide text-emerald-300">
+                      محفظة كاش الحي
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                      تداول محلي مباشر
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    بديل محفظة الجيب النقدية لتسهيل مشتريات الحي
+                  </p>
+                </div>
+              </div>
+
+              {/* Action shortcuts on top right */}
+              <div className="flex items-center gap-2">
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminProfile(true)}
+                    className="py-1.5 px-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                    title="تعديل بيانات الإدارة"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="hidden sm:inline">بيانات الإدارة</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={onOpenLogin}
+                  className="py-1.5 px-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                  title="تسجيل الخروج من الحساب"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-rose-400" />
+                  <span className="hidden sm:inline">خروج</span>
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              {isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => setShowAdminProfile(true)}
-                  className="py-2 px-3 rounded-2xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 hover:text-amber-200 text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
-                  title="تعديل اسم المدير، رقم الموبايل، العنوان ومقر الكاش"
-                >
-                  <ShieldCheck className="w-4 h-4 text-amber-400" />
-                  <span>تعديل بيانات الإدارة</span>
-                </button>
-              )}
+            {/* User Profile Info & Pocket Wallet 3D Visual */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              {/* User details */}
+              <div className="flex items-center gap-3.5">
+                <div className="relative">
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser.name}
+                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border-2 border-emerald-400/80 shadow-lg shadow-emerald-500/20 shrink-0"
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-slate-950 flex items-center justify-center">
+                    <Check className="w-3 h-3 text-slate-950 stroke-[3]" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg sm:text-xl font-black text-white">
+                      {currentUser.shopName || currentUser.name}
+                    </h2>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      {isAdmin
+                        ? 'المدير المعتمد'
+                        : currentUser.role === 'merchant'
+                        ? 'متجر معتمد'
+                        : 'مواطن بالحي'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 font-num font-mono mt-0.5">
+                    حساب: <span className="text-emerald-400 font-bold">{currentUser.accountNumber}</span> • هاتف: <span className="text-white font-bold">{currentUser.phone}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* The Pocket Wallet 3D Badge (Exact Image) */}
+              <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-950/70 border border-amber-500/30 self-start sm:self-center shadow-lg">
+                <img
+                  src={pocketWalletImg}
+                  alt="محفظة كاش الحي"
+                  className="w-12 h-12 rounded-xl object-cover border border-amber-400/70 shadow-[0_0_12px_rgba(16,185,129,0.4)] shrink-0"
+                />
+                <div className="text-right">
+                  <p className="text-[11px] font-black text-amber-300">محفظة الجيب الذكية</p>
+                  <p className="text-[10px] text-slate-400 font-medium">مشفرة وتعمل أوفلاين</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Glowing Neon Emerald Stripe with Gold Clasp (Directly from User Photo) */}
+            <div className="relative py-2 my-1">
+              <div className="w-full h-2.5 rounded-full wallet-neon-stripe relative"></div>
+              
+              {/* Golden Buckle Clasp with Coin Symbol */}
+              <div className="absolute right-6 sm:right-12 -top-1 px-3 py-1 rounded-xl wallet-gold-clasp border border-amber-200 flex items-center gap-1.5 shadow-xl">
+                <Coins className="w-3.5 h-3.5 text-slate-950 stroke-[2.5]" />
+                <span className="text-[10px] font-black text-slate-950 font-num tracking-wide">
+                  كاش الحي
+                </span>
+              </div>
+            </div>
+
+            {/* Current Available Balance */}
+            <div className="pt-1">
+              <div className="flex items-center gap-2 text-slate-300 text-xs sm:text-sm font-semibold mb-1">
+                <Wallet className="w-4 h-4 text-emerald-400" />
+                <span>الرصيد المتوفر لديك في محفظة الجيب:</span>
+              </div>
+
+              <div className="flex items-baseline gap-2.5 flex-wrap">
+                <h1 className="text-4xl sm:text-6xl font-black text-white font-num tracking-tight drop-shadow-[0_2px_12px_rgba(16,185,129,0.35)]">
+                  {currentUser.balance.toLocaleString()}
+                </h1>
+                <span className="text-base sm:text-2xl font-black text-emerald-400 drop-shadow">
+                  ليرة سورية (ل.س)
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-400 mt-1">
+                رصيدك الرقمي الجاهز للدفع المباشر بدل حمل النقود الورقية
+              </p>
+            </div>
+
+            {/* 2 Primary Action Buttons: دفع رصيد & استلام رصيد */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              {/* Pay Button */}
+              <button
+                onClick={() => {
+                  setPayIdentifier('');
+                  setShowPayModal(true);
+                }}
+                className="py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-sm sm:text-base shadow-xl shadow-emerald-500/30 flex items-center justify-center gap-2.5 transition active:scale-[0.98] cursor-pointer border border-emerald-300/40"
+              >
+                <ArrowUpRight className="w-5 h-5 text-slate-950 stroke-[2.5]" />
+                <span>دفع رصيد (بالباركود أو الحساب)</span>
+              </button>
+
+              {/* Receive Button */}
+              <button
+                onClick={handleOpenReceive}
+                className="py-4 px-6 rounded-2xl bg-slate-950/90 hover:bg-slate-900 text-slate-100 border-2 border-emerald-500/50 hover:border-emerald-400 font-black text-sm sm:text-base shadow-lg flex items-center justify-center gap-2.5 transition active:scale-[0.98] cursor-pointer"
+              >
+                <ArrowDownLeft className="w-5 h-5 text-emerald-400 stroke-[2.5]" />
+                <span>استلام رصيد (إظهار كود الباركود)</span>
+              </button>
+            </div>
+
+            {/* Quick Barcode Scanner & Show QR Camera Shortcuts */}
+            <div className="grid grid-cols-2 gap-2.5 pt-1 border-t border-slate-800/80">
+              <button
+                type="button"
+                onClick={onOpenBarcodeScan}
+                className="py-2.5 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-emerald-300 border border-emerald-500/30 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+              >
+                <QrCode className="w-4 h-4 text-emerald-400" />
+                <span>مسح باركود بالكاميرا</span>
+              </button>
 
               <button
                 type="button"
-                onClick={onOpenLogin}
-                className="py-2 px-3 rounded-2xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 hover:text-rose-200 text-xs font-bold transition flex items-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
-                title="تسجيل الخروج من الحساب"
+                onClick={onOpenBarcodeShow}
+                className="py-2.5 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-teal-300 border border-teal-500/30 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
               >
-                <LogOut className="w-4 h-4 text-rose-400" />
-                <span>تسجيل خروج</span>
+                <QrCode className="w-4 h-4 text-teal-400" />
+                <span>باركود حسابي السريع</span>
               </button>
             </div>
-          </div>
 
-          {/* Current Available Balance */}
-          <div>
-            <div className="flex items-center gap-2 text-slate-300 text-xs sm:text-sm font-semibold mb-1">
-              <Wallet className="w-4 h-4 text-emerald-400" />
-              <span>الرصيد المتوفر لديك في محفظة الجيب:</span>
+            {/* Quick in-card jumpers to sections (No scrolling needed!) */}
+            <div className="grid grid-cols-3 gap-2 pt-1 text-[11px]">
+              <button
+                type="button"
+                onClick={() => handleSelectSection('quick_pay')}
+                className="p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition flex flex-col items-center justify-center gap-1 cursor-pointer"
+              >
+                <Bookmark className="w-4 h-4 text-teal-400" />
+                <span className="font-bold">الدفع السريع</span>
+                <span className="text-[10px] text-slate-500 font-num">
+                  ({currentUser.savedContacts?.length || 0} جهات)
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectSection('history')}
+                className="p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition flex flex-col items-center justify-center gap-1 cursor-pointer"
+              >
+                <Clock className="w-4 h-4 text-cyan-400" />
+                <span className="font-bold">سجل العمليات</span>
+                <span className="text-[10px] text-slate-500 font-num">
+                  ({userTransactions.length} حركة)
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleSelectSection('admin_desk')}
+                className="p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition flex flex-col items-center justify-center gap-1 cursor-pointer"
+              >
+                <Building className="w-4 h-4 text-amber-400" />
+                <span className="font-bold">مقر الإدارة</span>
+                <span className="text-[10px] text-amber-400 font-bold">
+                  صرف وشحن
+                </span>
+              </button>
             </div>
 
-            <div className="flex items-baseline gap-2.5">
-              <h1 className="text-4xl sm:text-6xl font-black text-white font-num tracking-tight">
-                {currentUser.balance.toLocaleString()}
-              </h1>
-              <span className="text-base sm:text-xl font-extrabold text-emerald-400">
-                ليرة سورية (ل.س)
-              </span>
-            </div>
-
-            <p className="text-xs text-slate-400 mt-1">
-              رصيدك الرقمي الجاهز للدفع المباشر بدل حمل النقود الورقية
-            </p>
-          </div>
-
-          {/* 2 Primary Action Buttons: دفع رصيد & استلام رصيد */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
-            {/* Pay Button */}
-            <button
-              onClick={() => {
-                setPayIdentifier('');
-                setShowPayModal(true);
-              }}
-              className="py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-sm sm:text-base shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2.5 transition active:scale-[0.99] cursor-pointer"
-            >
-              <ArrowUpRight className="w-5 h-5 text-slate-950 stroke-[2.5]" />
-              <span>دفع رصيد (بالباركود أو الحساب)</span>
-            </button>
-
-            {/* Receive Button */}
-            <button
-              onClick={handleOpenReceive}
-              className="py-4 px-6 rounded-2xl bg-slate-950 hover:bg-slate-800 text-slate-100 border-2 border-slate-700/80 font-black text-sm sm:text-base shadow-md flex items-center justify-center gap-2.5 transition active:scale-[0.99] cursor-pointer"
-            >
-              <ArrowDownLeft className="w-5 h-5 text-emerald-400 stroke-[2.5]" />
-              <span>استلام رصيد (كود الباركود الخاص بي)</span>
-            </button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* SPECIAL MANAGER CONTROLS: APPEAR ONLY IF USER IS THE MANAGER */}
-      {isAdmin && (
+      {isAdmin && (activeSection === 'wallet' || activeSection === 'admin_desk' || activeSection === 'all') && (
         <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border-2 border-amber-500/40 rounded-3xl p-5 space-y-4 shadow-xl">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-500/20">
             <div className="flex items-center gap-2.5">
@@ -365,7 +581,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
             <button
               type="button"
               onClick={() => setView('admin')}
-              className="py-2 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center gap-2 transition shadow-md self-start sm:self-center"
+              className="py-2 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center gap-2 transition shadow-md self-start sm:self-center cursor-pointer"
             >
               <Building className="w-4 h-4" />
               <span>فتح لوحة الصندوق الكاملة</span>
@@ -401,7 +617,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
             <button
               type="button"
               onClick={() => setView('admin')}
-              className="py-2.5 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 font-bold text-xs flex items-center justify-center gap-2 transition"
+              className="py-2.5 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
             >
               <PlusCircle className="w-4 h-4 text-emerald-400" />
               <span>تزويد رصيد لمشترك (قبض كاش)</span>
@@ -410,7 +626,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
             <button
               type="button"
               onClick={() => setView('admin')}
-              className="py-2.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center justify-center gap-2 transition"
+              className="py-2.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
             >
               <ArrowDownToLine className="w-4 h-4 text-amber-400" />
               <span>تسليم وصرف كاش (خصم رصيد)</span>
@@ -419,7 +635,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
             <button
               type="button"
               onClick={() => setView('admin')}
-              className="py-2.5 px-3 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 font-bold text-xs flex items-center justify-center gap-2 transition"
+              className="py-2.5 px-3 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/30 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
             >
               <UserPlus className="w-4 h-4 text-cyan-400" />
               <span>تسجيل مشترك جديد</span>
@@ -428,210 +644,214 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
         </div>
       )}
 
-      {/* 2. جهات الدفع السريع المحفوظة فقط (Saved Quick-Pay Contacts) */}
-      <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl p-5 space-y-4">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <Bookmark className="w-4 h-4 text-emerald-400" />
-            <div>
-              <h3 className="font-bold text-sm text-white">جهات الدفع السريع المحفوظة لديك</h3>
-              <p className="text-[11px] text-slate-400">
-                حساباتك المفضلة (كالبقالية أو الأصدقاء) للدفع بنقرة واحدة دون البحث
-              </p>
+      {/* 2. جهات الدفع السريع المحفوظة (Saved Quick-Pay Contacts) */}
+      {(activeSection === 'quick_pay' || activeSection === 'all') && (
+        <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl animate-in fade-in">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <Bookmark className="w-5 h-5 text-teal-400" />
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-white">جهات الدفع السريع المحفوظة لديك</h3>
+                <p className="text-[11px] text-slate-400">
+                  حساباتك المفضلة (كالبقالية أو الأصدقاء) للدفع بنقرة واحدة دون البحث
+                </p>
+              </div>
             </div>
-          </div>
 
-          <button
-            onClick={() => setShowAddContactModal(true)}
-            className="text-xs font-bold px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>إضافة جهة</span>
-          </button>
-        </div>
-
-        {/* Saved Contacts List or Clean Empty State */}
-        {(!currentUser.savedContacts || currentUser.savedContacts.length === 0) ? (
-          <div className="py-6 px-4 text-center rounded-2xl bg-slate-950/60 border border-dashed border-slate-800">
-            <Bookmark className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-60" />
-            <p className="text-xs font-bold text-slate-300">
-              لم تحتفظ بأي جهات للدفع السريع بعد
-            </p>
-            <p className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
-              يمكنك حفظ البقاليات أو الأشخاص الذين تتعامل معهم باستمرار لتسريع عمليات الدفع المستقبلية.
-            </p>
             <button
               onClick={() => setShowAddContactModal(true)}
-              className="mt-3 text-xs font-bold px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 inline-flex items-center gap-1.5 transition cursor-pointer"
+              className="text-xs font-bold px-3 py-1.5 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 transition flex items-center gap-1.5 cursor-pointer"
             >
-              <Plus className="w-3.5 h-3.5 text-emerald-400" />
-              <span>إضافة جهتك الأولى الآن</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>إضافة جهة</span>
             </button>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {currentUser.savedContacts.map((c) => (
-              <div
-                key={c.id}
-                className="p-3 rounded-2xl bg-slate-950 border border-slate-800 hover:border-emerald-500/40 flex items-center justify-between gap-2.5 transition group"
-              >
-                <div
-                  onClick={() => handleQuickPayContact(c)}
-                  className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
-                >
-                  <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-emerald-400 shrink-0">
-                    <Store className="w-4 h-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-100 group-hover:text-emerald-400 truncate">
-                      {c.shopName || c.name}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-num font-mono truncate">
-                      {c.accountNumber} • {c.phone}
-                    </p>
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
+          {/* Saved Contacts List or Clean Empty State */}
+          {(!currentUser.savedContacts || currentUser.savedContacts.length === 0) ? (
+            <div className="py-8 px-4 text-center rounded-2xl bg-slate-950/60 border border-dashed border-slate-800">
+              <Bookmark className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-60" />
+              <p className="text-xs font-bold text-slate-300">
+                لم تحتفظ بأي جهات للدفع السريع بعد
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
+                يمكنك حفظ البقاليات أو الأشخاص الذين تتعامل معهم باستمرار لتسريع عمليات الدفع المستقبلية بنقرة زر واحدة.
+              </p>
+              <button
+                onClick={() => setShowAddContactModal(true)}
+                className="mt-3 text-xs font-bold px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 inline-flex items-center gap-1.5 transition cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 text-teal-400" />
+                <span>إضافة جهتك الأولى الآن</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {currentUser.savedContacts.map((c) => (
+                <div
+                  key={c.id}
+                  className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-teal-500/40 flex items-center justify-between gap-2.5 transition group"
+                >
+                  <div
                     onClick={() => handleQuickPayContact(c)}
-                    className="px-2.5 py-1 rounded-xl bg-emerald-500/20 hover:bg-emerald-500 text-emerald-300 hover:text-slate-950 text-[11px] font-bold transition cursor-pointer"
+                    className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
                   >
-                    دفع
-                  </button>
-                  <button
-                    onClick={() => removeSavedContact(c.id)}
-                    className="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                    title="حذف من المحفوظات"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                    <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-teal-400 shrink-0">
+                      <Store className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-100 group-hover:text-teal-400 truncate">
+                        {c.shopName || c.name}
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-num font-mono truncate">
+                        {c.accountNumber} • {c.phone}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleQuickPayContact(c)}
+                      className="px-3 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500 text-teal-300 hover:text-slate-950 text-xs font-bold transition cursor-pointer"
+                    >
+                      دفع
+                    </button>
+                    <button
+                      onClick={() => removeSavedContact(c.id)}
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                      title="حذف من المحفوظات"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 3. شريط أسفل صفحته يتضمن الحركات والعمليات التي يجريها على الحساب */}
-      <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl p-5 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-emerald-400" />
-            <div>
-              <h3 className="font-bold text-sm text-white">شريط سجل العمليات والحركات الشخصية</h3>
-              <p className="text-[11px] text-slate-400">
-                جميع حركات الدفع والاستلام والشحن الخاصة بحسابك فقط
-              </p>
+      {(activeSection === 'history' || activeSection === 'all') && (
+        <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl animate-in fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+            <div className="flex items-center gap-2">
+              <Clock className="w-5 h-5 text-cyan-400" />
+              <div>
+                <h3 className="font-bold text-sm sm:text-base text-white">سجل العمليات والحركات الشخصية</h3>
+                <p className="text-[11px] text-slate-400">
+                  جميع حركات الدفع والاستلام والشحن الخاصة بحسابك فقط
+                </p>
+              </div>
+            </div>
+
+            {/* Filter Pills */}
+            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs self-start sm:self-center">
+              <button
+                onClick={() => setTxFilter('all')}
+                className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  txFilter === 'all'
+                    ? 'bg-slate-800 text-white'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                الكل ({userTransactions.length})
+              </button>
+              <button
+                onClick={() => setTxFilter('outgoing')}
+                className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  txFilter === 'outgoing'
+                    ? 'bg-rose-500/20 text-rose-300'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                دفع صادر
+              </button>
+              <button
+                onClick={() => setTxFilter('incoming')}
+                className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
+                  txFilter === 'incoming'
+                    ? 'bg-emerald-500/20 text-emerald-300'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                استلام وارد
+              </button>
             </div>
           </div>
 
-          {/* Filter Pills */}
-          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs self-start sm:self-center">
-            <button
-              onClick={() => setTxFilter('all')}
-              className={`px-3 py-1 rounded-lg font-bold transition ${
-                txFilter === 'all'
-                  ? 'bg-slate-800 text-white'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              الكل ({userTransactions.length})
-            </button>
-            <button
-              onClick={() => setTxFilter('outgoing')}
-              className={`px-3 py-1 rounded-lg font-bold transition ${
-                txFilter === 'outgoing'
-                  ? 'bg-rose-500/20 text-rose-300'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              دفع صادر
-            </button>
-            <button
-              onClick={() => setTxFilter('incoming')}
-              className={`px-3 py-1 rounded-lg font-bold transition ${
-                txFilter === 'incoming'
-                  ? 'bg-emerald-500/20 text-emerald-300'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              استلام وارد
-            </button>
-          </div>
-        </div>
-
-        {/* Transactions Items */}
-        {filteredTransactions.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-xs">
-            لا توجد حركات تطابق التحديد حالياً.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {filteredTransactions.map((tx) => {
-              const isIncome = tx.recipientId === currentUser.id;
-              return (
-                <div
-                  key={tx.id}
-                  className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 flex items-center justify-between gap-3 text-xs"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        isIncome
-                          ? 'bg-emerald-500/15 text-emerald-400'
-                          : 'bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      {isIncome ? (
-                        <ArrowDownLeft className="w-4 h-4 stroke-[2.5]" />
-                      ) : (
-                        <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-slate-100 truncate">
-                          {isIncome ? `استلام من: ${tx.senderName}` : `دفع إلى: ${tx.recipientName}`}
-                        </p>
-                        {tx.isQrScan && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-500/15 text-teal-300 border border-teal-500/30">
-                            باركود
-                          </span>
+          {/* Transactions Items */}
+          {filteredTransactions.length === 0 ? (
+            <div className="text-center py-8 text-slate-400 text-xs">
+              لا توجد حركات تطابق التحديد حالياً.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filteredTransactions.map((tx) => {
+                const isIncome = tx.recipientId === currentUser.id;
+                return (
+                  <div
+                    key={tx.id}
+                    className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          isIncome
+                            ? 'bg-emerald-500/15 text-emerald-400'
+                            : 'bg-slate-800 text-slate-300'
+                        }`}
+                      >
+                        {isIncome ? (
+                          <ArrowDownLeft className="w-4 h-4 stroke-[2.5]" />
+                        ) : (
+                          <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5">{tx.note}</p>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-bold text-slate-100 truncate">
+                            {isIncome ? `استلام من: ${tx.senderName}` : `دفع إلى: ${tx.recipientName}`}
+                          </p>
+                          {tx.isQrScan && (
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-500/15 text-teal-300 border border-teal-500/30">
+                              باركود
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-slate-400 truncate mt-0.5">{tx.note}</p>
+                      </div>
+                    </div>
+
+                    <div className="text-left shrink-0">
+                      <p
+                        className={`font-black font-num text-sm sm:text-base ${
+                          isIncome ? 'text-emerald-400' : 'text-slate-100'
+                        }`}
+                      >
+                        {isIncome ? '+' : '-'}
+                        {tx.amount.toLocaleString()} ل.س
+                      </p>
+                      <span className="text-[10px] text-slate-500 font-num font-mono block">
+                        {tx.receiptCode}
+                      </span>
+                      {!isIncome && typeof tx.fee === 'number' && tx.fee > 0 && (
+                        <span className="text-[10px] text-amber-300/80 font-num block">
+                          عمولة الإدارة: {tx.fee.toLocaleString()} ل.س
+                        </span>
+                      )}
                     </div>
                   </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
-                  <div className="text-left shrink-0">
-                    <p
-                      className={`font-black font-num text-sm sm:text-base ${
-                        isIncome ? 'text-emerald-400' : 'text-slate-100'
-                      }`}
-                    >
-                      {isIncome ? '+' : '-'}
-                      {tx.amount.toLocaleString()} ل.س
-                    </p>
-                    <span className="text-[10px] text-slate-500 font-num font-mono block">
-                      {tx.receiptCode}
-                    </span>
-                    {!isIncome && typeof tx.fee === 'number' && tx.fee > 0 && (
-                      <span className="text-[10px] text-amber-300/80 font-num block">
-                        عمولة الإدارة: {tx.fee.toLocaleString()} ل.س
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* 4. عنوان الإدارة ورقم التلفون لشحن وصرف الكاش يداً بيد (معلومات فقط دون عمليات عن بعد) */}
-      {!isAdmin && (
-        <div className="p-5 rounded-3xl bg-slate-900/90 border-2 border-slate-800 space-y-3.5 shadow-xl">
+      {/* 4. عنوان الإدارة ورقم التلفون لشحن وصرف الكاش يداً بيد */}
+      {(activeSection === 'admin_desk' || activeSection === 'all') && (
+        <div className="p-5 rounded-3xl bg-slate-900/90 border-2 border-slate-800 space-y-4 shadow-xl animate-in fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
@@ -647,7 +867,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  المعتمد: {adminUser.name}
+                  المعتمد: <span className="text-amber-300 font-bold">{adminUser.name}</span>
                 </p>
               </div>
             </div>
@@ -684,7 +904,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
 
               <a
                 href={`tel:${adminUser.phone}`}
-                className="py-1.5 px-3 rounded-xl bg-cyan-500/15 hover:bg-cyan-500 text-cyan-300 hover:text-slate-950 font-bold text-xs transition border border-cyan-500/30 shrink-0 self-center"
+                className="py-1.5 px-3.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs transition shadow-md shrink-0 self-center cursor-pointer"
               >
                 اتصال الآن
               </a>
@@ -700,6 +920,116 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* MOBILE BOTTOM TOOLBAR (شريط أدوات متناسب مع شاشة الموبايل حتى لا يضطر المستخدم للتمرير لأسفل) */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800 shadow-[0_-8px_30px_rgba(0,0,0,0.85)] pb-safe">
+        <div className="max-w-md sm:max-w-lg mx-auto px-2 py-2 flex items-center justify-around">
+          
+          {/* 1. أيقونة المحفظة (الرئيسية) */}
+          <button
+            type="button"
+            onClick={() => handleSelectSection('wallet')}
+            className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all cursor-pointer relative ${
+              activeSection === 'wallet'
+                ? 'text-emerald-400 font-black scale-105'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+              activeSection === 'wallet'
+                ? 'bg-gradient-to-tr from-emerald-500/30 to-teal-400/20 border-2 border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)] text-emerald-300'
+                : 'bg-slate-900/70 border border-slate-800 text-slate-400'
+            }`}>
+              <Wallet className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <span className="text-[11px] mt-1 font-bold">المحفظة</span>
+            {activeSection === 'wallet' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-0.5 animate-pulse"></span>
+            )}
+          </button>
+
+          {/* 2. أيقونة جهات الدفع السريع */}
+          <button
+            type="button"
+            onClick={() => handleSelectSection('quick_pay')}
+            className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all cursor-pointer relative ${
+              activeSection === 'quick_pay'
+                ? 'text-teal-300 font-black scale-105'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all relative ${
+              activeSection === 'quick_pay'
+                ? 'bg-gradient-to-tr from-teal-500/30 to-emerald-400/20 border-2 border-teal-400 shadow-[0_0_15px_rgba(20,184,166,0.4)] text-teal-300'
+                : 'bg-slate-900/70 border border-slate-800 text-slate-400'
+            }`}>
+              <Bookmark className="w-5 h-5 stroke-[2.2]" />
+              {currentUser.savedContacts && currentUser.savedContacts.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-teal-400 text-slate-950 text-[10px] font-black flex items-center justify-center font-num shadow">
+                  {currentUser.savedContacts.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] mt-1 font-bold">الدفع السريع</span>
+            {activeSection === 'quick_pay' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-0.5 animate-pulse"></span>
+            )}
+          </button>
+
+          {/* 3. أيقونة سجل العمليات */}
+          <button
+            type="button"
+            onClick={() => handleSelectSection('history')}
+            className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all cursor-pointer relative ${
+              activeSection === 'history'
+                ? 'text-cyan-300 font-black scale-105'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all relative ${
+              activeSection === 'history'
+                ? 'bg-gradient-to-tr from-cyan-500/30 to-blue-400/20 border-2 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.4)] text-cyan-300'
+                : 'bg-slate-900/70 border border-slate-800 text-slate-400'
+            }`}>
+              <Clock className="w-5 h-5 stroke-[2.2]" />
+              {userTransactions.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-cyan-400 text-slate-950 text-[10px] font-black flex items-center justify-center font-num shadow">
+                  {userTransactions.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] mt-1 font-bold">سجل العمليات</span>
+            {activeSection === 'history' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-0.5 animate-pulse"></span>
+            )}
+          </button>
+
+          {/* 4. أيقونة إدارة كاش الحي */}
+          <button
+            type="button"
+            onClick={() => handleSelectSection('admin_desk')}
+            className={`flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all cursor-pointer relative ${
+              activeSection === 'admin_desk'
+                ? 'text-amber-300 font-black scale-105'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all relative ${
+              activeSection === 'admin_desk'
+                ? 'bg-gradient-to-tr from-amber-500/30 to-yellow-400/20 border-2 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] text-amber-300'
+                : 'bg-slate-900/70 border border-slate-800 text-slate-400'
+            }`}>
+              <Building className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <span className="text-[11px] mt-1 font-bold">إدارة كاش الحي</span>
+            {activeSection === 'admin_desk' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-0.5 animate-pulse"></span>
+            )}
+          </button>
+
+        </div>
+      </nav>
+
 
       {/* MODAL 1: دفع رصيد (Pay Balance Modal) */}
       {showPayModal && (

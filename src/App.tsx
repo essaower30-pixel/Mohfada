@@ -51,8 +51,8 @@ export default function App() {
         )}
       </main>
 
-      {/* Clean Footer without admin links for normal users */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 py-5 text-center text-xs text-slate-500">
+      {/* Clean Footer with padding for mobile bottom bar */}
+      <footer className="border-t border-slate-900 bg-slate-950/80 py-5 pb-20 sm:pb-6 text-center text-xs text-slate-500">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
             محفظة كاش الحي • بديل محفظة الجيب الورقية للتداول المحلي المباشر

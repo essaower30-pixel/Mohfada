@@ -31,6 +31,10 @@ function getInitialState(): LocalWalletState {
               address: u.address || 'ساحة الحي الرئيسية - جانب جامع التقوى (مكتب إدارة كاش الحي)',
             };
           }
+          // Remove (مواطن بالحي) from user name if present
+          if (u.name) {
+            u.name = u.name.replace(/\s*\(مواطن بالحي\)\s*/g, '').trim();
+          }
           // Remove any saved contact for admin from customer's list
           if (u.savedContacts) {
             u.savedContacts = u.savedContacts.filter((c) => c.accountNumber !== 'CASH-100');

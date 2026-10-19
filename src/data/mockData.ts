@@ -18,7 +18,7 @@ export const INITIAL_USERS: CommunityUser[] = [
   },
   {
     id: 'usr_ahmad',
-    name: 'عيسى عوير (مواطن بالحي)',
+    name: 'عيسى عوير',
     phone: '0982115383',
     accountNumber: 'POCKET-562',
     role: 'resident',
@@ -103,7 +103,7 @@ export const INITIAL_TRANSACTIONS: LocalTransaction[] = [
     senderId: 'usr_admin',
     senderName: 'أبو حامد (أمين الصندوق والمعتمد)',
     recipientId: 'usr_ahmad',
-    recipientName: 'عيسى عوير (مواطن بالحي)',
+    recipientName: 'عيسى عوير',
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
     note: 'شحن رصيد مقابل تسليم 500,000 ل.س كاش يداً بيد',
     receiptCode: 'CASH-8812',

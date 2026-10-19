@@ -271,22 +271,33 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                   </div>
                 </div>
 
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
                     <h2 className="text-base sm:text-lg font-black text-white truncate">
-                      {currentUser.shopName || currentUser.name}
+                      {(currentUser.shopName || currentUser.name).replace(/\s*\(مواطن بالحي\)\s*/g, '')}
                     </h2>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 whitespace-nowrap">
-                      {isAdmin
-                        ? 'المدير المعتمد'
-                        : currentUser.role === 'merchant'
-                        ? 'متجر معتمد'
-                        : 'مواطن بالحي'}
+                    {isAdmin && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 whitespace-nowrap">
+                        المدير المعتمد
+                      </span>
+                    )}
+                    {currentUser.role === 'merchant' && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 whitespace-nowrap">
+                        متجر معتمد
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Account & Phone number clearly visible without truncation */}
+                  <div className="flex items-center gap-2 font-num text-xs mt-1 flex-wrap">
+                    <span className="text-slate-400 text-[11px] whitespace-nowrap">
+                      حساب: <strong className="text-emerald-400 font-mono font-bold">{currentUser.accountNumber}</strong>
+                    </span>
+                    <span className="text-slate-600 hidden xs:inline">•</span>
+                    <span className="text-slate-300 text-[11px] whitespace-nowrap">
+                      هاتف: <strong className="text-white font-mono font-bold tracking-wide">{currentUser.phone}</strong>
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-300 font-num font-mono mt-0.5 truncate">
-                    حساب: <span className="text-emerald-400 font-bold">{currentUser.accountNumber}</span> • هاتف: <span className="text-white font-bold">{currentUser.phone}</span>
-                  </p>
                 </div>
               </div>
 
@@ -925,7 +936,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                   ) : (
                     <div className="mt-2 p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-2 animate-in fade-in">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span>المستلم: {matchedRecipient.shopName || matchedRecipient.name} ({matchedRecipient.role === 'merchant' ? 'متجر معتمد' : 'مواطن بالحي'})</span>
+                      <span>المستلم: {(matchedRecipient.shopName || matchedRecipient.name).replace(/\s*\(مواطن بالحي\)\s*/g, '')} {matchedRecipient.role === 'merchant' ? '(متجر معتمد)' : ''}</span>
                     </div>
                   )
                 )}

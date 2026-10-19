@@ -39,7 +39,7 @@ export default function App() {
       <TopNav onOpenLogin={() => setIsLoginOpen(true)} />
 
       {/* Main Container */}
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-2.5 sm:py-6">
         {showAdminPortal ? (
           <AdminPortal />
         ) : (
@@ -51,8 +51,8 @@ export default function App() {
         )}
       </main>
 
-      {/* Clean Footer with padding for mobile bottom bar */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 py-5 pb-20 sm:pb-6 text-center text-xs text-slate-500">
+      {/* Clean Footer (Desktop only to prevent mobile scrolling) */}
+      <footer className="hidden sm:block border-t border-slate-900 bg-slate-950/80 py-5 text-center text-xs text-slate-500">
         <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p>
             محفظة كاش الحي • بديل محفظة الجيب الورقية للتداول المحلي المباشر

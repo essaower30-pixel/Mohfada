@@ -27,15 +27,12 @@ import {
   Smartphone,
   MapPin,
   PhoneCall,
-  Coins,
-  Share2,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
 import { useCommunityWallet } from '../services/walletState';
 import { LocalTransaction, SavedContact } from '../types/wallet';
 import { AdminProfileModal } from './AdminProfileModal';
-import pocketWalletImg from '../assets/images/pocket_wallet_icon_1792329987812.jpg';
 
 
 interface UserWalletViewProps {
@@ -236,7 +233,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 pb-24 sm:pb-28">
+    <div className="space-y-4 pb-20 sm:pb-24">
       {/* Toast Alert */}
       {toastMsg && (
         <div className="p-4 rounded-2xl bg-emerald-500/20 border-2 border-emerald-500/40 text-emerald-300 text-xs sm:text-sm font-bold flex items-center justify-between shadow-lg animate-in slide-in-from-top duration-200">
@@ -250,44 +247,56 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
         </div>
       )}
 
-      {/* 1. Main Luxury Pocket Wallet Card (Styled Exactly as the User Image) */}
+      {/* 1. Main Luxury Pocket Wallet Card (Compact & Non-Scrollable) */}
       {activeSection === 'wallet' && (
-        <div className="relative overflow-hidden rounded-[2.5rem] wallet-leather-card border-2 border-amber-500/50 p-4 sm:p-7 text-slate-100 shadow-2xl transition-all">
+        <div className="relative overflow-hidden rounded-3xl wallet-leather-card border-2 border-amber-500/50 p-3.5 sm:p-5 text-slate-100 shadow-2xl transition-all">
           {/* Subtle background ambient lights */}
-          <div className="absolute top-0 right-1/4 -mt-16 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute top-0 right-1/4 -mt-16 w-72 h-72 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
           <div className="absolute bottom-0 left-10 -mb-16 w-60 h-60 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
-          {/* Golden Stitched Inner Border (Double Stitch Effect matching the image) */}
-          <div className="relative z-10 wallet-stitched-border rounded-[2rem] p-4 sm:p-6 space-y-5 bg-slate-950/50 backdrop-blur-xs">
+          {/* Golden Stitched Inner Border */}
+          <div className="relative z-10 wallet-stitched-border rounded-2xl p-3.5 sm:p-5 space-y-3.5 sm:space-y-4 bg-slate-950/60 backdrop-blur-xs">
             
-            {/* Top Glowing Community Network Emblem (Emerging from top like the image) */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.4)]">
-                  <Share2 className="w-4 h-4" />
+            {/* User Profile Info Header (Clean without top icons) */}
+            <div className="flex items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative shrink-0">
+                  <img
+                    src={currentUser.avatar}
+                    alt={currentUser.name}
+                    className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover border-2 border-emerald-400/80 shadow-md shadow-emerald-500/20"
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-950 flex items-center justify-center">
+                    <Check className="w-2.5 h-2.5 text-slate-950 stroke-[3]" />
+                  </div>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black tracking-wide text-emerald-300">
-                      محفظة كاش الحي
-                    </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
-                      تداول محلي مباشر
+
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h2 className="text-base sm:text-lg font-black text-white truncate">
+                      {currentUser.shopName || currentUser.name}
+                    </h2>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 whitespace-nowrap">
+                      {isAdmin
+                        ? 'المدير المعتمد'
+                        : currentUser.role === 'merchant'
+                        ? 'متجر معتمد'
+                        : 'مواطن بالحي'}
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-400">
-                    بديل محفظة الجيب النقدية لتسهيل مشتريات الحي
+                  <p className="text-[11px] text-slate-300 font-num font-mono mt-0.5 truncate">
+                    حساب: <span className="text-emerald-400 font-bold">{currentUser.accountNumber}</span> • هاتف: <span className="text-white font-bold">{currentUser.phone}</span>
                   </p>
                 </div>
               </div>
 
-              {/* Action shortcuts on top right */}
-              <div className="flex items-center gap-2">
+              {/* Quick actions for admin or user logout */}
+              <div className="flex items-center gap-1.5 shrink-0">
                 {isAdmin && (
                   <button
                     type="button"
                     onClick={() => setShowAdminProfile(true)}
-                    className="py-1.5 px-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                    className="py-1 px-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
                     title="تعديل بيانات الإدارة"
                   >
                     <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
@@ -298,7 +307,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                 <button
                   type="button"
                   onClick={onOpenLogin}
-                  className="py-1.5 px-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
+                  className="py-1 px-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
                   title="تسجيل الخروج من الحساب"
                 >
                   <LogOut className="w-3.5 h-3.5 text-rose-400" />
@@ -307,109 +316,48 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
               </div>
             </div>
 
-            {/* User Profile Info & Pocket Wallet 3D Visual */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              {/* User details */}
-              <div className="flex items-center gap-3.5">
-                <div className="relative">
-                  <img
-                    src={currentUser.avatar}
-                    alt={currentUser.name}
-                    className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl object-cover border-2 border-emerald-400/80 shadow-lg shadow-emerald-500/20 shrink-0"
-                  />
-                  <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-slate-950 flex items-center justify-center">
-                    <Check className="w-3 h-3 text-slate-950 stroke-[3]" />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg sm:text-xl font-black text-white">
-                      {currentUser.shopName || currentUser.name}
-                    </h2>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      {isAdmin
-                        ? 'المدير المعتمد'
-                        : currentUser.role === 'merchant'
-                        ? 'متجر معتمد'
-                        : 'مواطن بالحي'}
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-300 font-num font-mono mt-0.5">
-                    حساب: <span className="text-emerald-400 font-bold">{currentUser.accountNumber}</span> • هاتف: <span className="text-white font-bold">{currentUser.phone}</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* The Pocket Wallet 3D Badge (Exact Image) */}
-              <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-950/70 border border-amber-500/30 self-start sm:self-center shadow-lg">
-                <img
-                  src={pocketWalletImg}
-                  alt="محفظة كاش الحي"
-                  className="w-12 h-12 rounded-xl object-cover border border-amber-400/70 shadow-[0_0_12px_rgba(16,185,129,0.4)] shrink-0"
-                />
-                <div className="text-right">
-                  <p className="text-[11px] font-black text-amber-300">محفظة الجيب الذكية</p>
-                  <p className="text-[10px] text-slate-400 font-medium">مشفرة وتعمل أوفلاين</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Glowing Neon Emerald Stripe with Gold Clasp (Directly from User Photo) */}
-            <div className="relative py-2 my-1">
-              <div className="w-full h-2.5 rounded-full wallet-neon-stripe relative"></div>
-              
-              {/* Golden Buckle Clasp with Coin Symbol */}
-              <div className="absolute right-6 sm:right-12 -top-1 px-3 py-1 rounded-xl wallet-gold-clasp border border-amber-200 flex items-center gap-1.5 shadow-xl">
-                <Coins className="w-3.5 h-3.5 text-slate-950 stroke-[2.5]" />
-                <span className="text-[10px] font-black text-slate-950 font-num tracking-wide">
-                  كاش الحي
-                </span>
-              </div>
-            </div>
-
-            {/* Current Available Balance */}
-            <div className="pt-1">
-              <div className="flex items-center gap-2 text-slate-300 text-xs sm:text-sm font-semibold mb-1">
-                <Wallet className="w-4 h-4 text-emerald-400" />
+            {/* Current Available Balance (Clean and Direct) */}
+            <div className="py-0.5">
+              <div className="flex items-center gap-1.5 text-slate-300 text-xs sm:text-sm font-semibold mb-1">
+                <Wallet className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>الرصيد المتوفر لديك في محفظة الجيب:</span>
               </div>
 
-              <div className="flex items-baseline gap-2.5 flex-wrap">
-                <h1 className="text-4xl sm:text-6xl font-black text-white font-num tracking-tight drop-shadow-[0_2px_12px_rgba(16,185,129,0.35)]">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <h1 className="text-3xl sm:text-5xl font-black text-white font-num tracking-tight drop-shadow-[0_2px_10px_rgba(16,185,129,0.35)]">
                   {currentUser.balance.toLocaleString()}
                 </h1>
-                <span className="text-base sm:text-2xl font-black text-emerald-400 drop-shadow">
+                <span className="text-sm sm:text-xl font-black text-emerald-400">
                   ليرة سورية (ل.س)
                 </span>
               </div>
 
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-[11px] text-slate-400 mt-1">
                 رصيدك الرقمي الجاهز للدفع المباشر بدل حمل النقود الورقية
               </p>
             </div>
 
-            {/* 2 Primary Action Buttons: دفع رصيد & استلام رصيد */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            {/* 2 Primary Action Buttons: دفع رصيد & استلام رصيد (Side by side for compact fit) */}
+            <div className="grid grid-cols-2 gap-2.5 pt-1">
               {/* Pay Button */}
               <button
                 onClick={() => {
                   setPayIdentifier('');
                   setShowPayModal(true);
                 }}
-                className="py-4 px-6 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-sm sm:text-base shadow-xl shadow-emerald-500/30 flex items-center justify-center gap-2.5 transition active:scale-[0.98] cursor-pointer border border-emerald-300/40"
+                className="py-3 px-3 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs sm:text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition active:scale-[0.98] cursor-pointer border border-emerald-300/40"
               >
-                <ArrowUpRight className="w-5 h-5 text-slate-950 stroke-[2.5]" />
-                <span>دفع رصيد (بالباركود أو الحساب)</span>
+                <ArrowUpRight className="w-4 h-4 text-slate-950 stroke-[2.5] shrink-0" />
+                <span>دفع رصيد</span>
               </button>
 
               {/* Receive Button */}
               <button
                 onClick={handleOpenReceive}
-                className="py-4 px-6 rounded-2xl bg-slate-950/90 hover:bg-slate-900 text-slate-100 border-2 border-emerald-500/50 hover:border-emerald-400 font-black text-sm sm:text-base shadow-lg flex items-center justify-center gap-2.5 transition active:scale-[0.98] cursor-pointer"
+                className="py-3 px-3 rounded-2xl bg-slate-950/90 hover:bg-slate-900 text-slate-100 border-2 border-emerald-500/50 hover:border-emerald-400 font-black text-xs sm:text-sm shadow-md flex items-center justify-center gap-1.5 transition active:scale-[0.98] cursor-pointer"
               >
-                <ArrowDownLeft className="w-5 h-5 text-emerald-400 stroke-[2.5]" />
-                <span>استلام رصيد (إظهار كود الباركود)</span>
+                <ArrowDownLeft className="w-4 h-4 text-emerald-400 stroke-[2.5] shrink-0" />
+                <span>استلام رصيد</span>
               </button>
             </div>
 
@@ -418,18 +366,18 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
               <button
                 type="button"
                 onClick={onOpenBarcodeScan}
-                className="py-2.5 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-emerald-300 border border-emerald-500/30 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                className="py-2.5 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-emerald-300 border border-emerald-500/30 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
-                <QrCode className="w-4 h-4 text-emerald-400" />
+                <QrCode className="w-4 h-4 text-emerald-400 shrink-0" />
                 <span>مسح باركود بالكاميرا</span>
               </button>
 
               <button
                 type="button"
                 onClick={onOpenBarcodeShow}
-                className="py-2.5 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-teal-300 border border-teal-500/30 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
+                className="py-2.5 px-3 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-teal-300 border border-teal-500/30 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
               >
-                <QrCode className="w-4 h-4 text-teal-400" />
+                <QrCode className="w-4 h-4 text-teal-400 shrink-0" />
                 <span>باركود حسابي السريع</span>
               </button>
             </div>

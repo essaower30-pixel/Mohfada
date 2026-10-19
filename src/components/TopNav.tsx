@@ -6,8 +6,10 @@ import {
   ChevronDown,
   KeyRound,
   ShieldCheck,
+  Smartphone,
 } from 'lucide-react';
 import { useCommunityWallet } from '../services/walletState';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { AdminProfileModal } from './AdminProfileModal';
 
@@ -17,6 +19,7 @@ interface TopNavProps {
 
 export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
   const { currentUser, setView, state } = useCommunityWallet();
+  const { isInstallable, triggerInstall } = usePWAInstall();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showAdminProfile, setShowAdminProfile] = useState(false);
@@ -87,6 +90,19 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
                 <span className="hidden sm:inline">إدارة وتزويد الكاش</span>
               </button>
             </div>
+          )}
+
+          {/* PWA 1-Click Install Button */}
+          {isInstallable && (
+            <button
+              type="button"
+              onClick={triggerInstall}
+              className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 animate-pulse hover:opacity-90 transition cursor-pointer"
+              title="تثبيت التطبيق على الهاتف"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>تثبيت التطبيق</span>
+            </button>
           )}
 
           {/* User Profile Pill */}

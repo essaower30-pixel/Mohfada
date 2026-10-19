@@ -46,6 +46,7 @@ import {
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
 import { useCommunityWallet } from '../services/walletState';
+import { usePWAInstall } from '../hooks/usePWAInstall';
 import { CommunityUser } from '../types/wallet';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { AdminProfileModal } from './AdminProfileModal';
@@ -69,6 +70,7 @@ export const AdminPortal: React.FC = () => {
     setView,
   } = useCommunityWallet();
 
+  const { isInstallable, triggerInstall } = usePWAInstall();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [activeTab, setActiveTab] = useState<'charge' | 'withdraw' | 'new_user' | 'lookup' | 'reports' | 'install_qr' | 'edit_profile'>('charge');
@@ -1923,14 +1925,14 @@ export const AdminPortal: React.FC = () => {
               <div className="relative group shrink-0">
                 <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl overflow-hidden shadow-2xl shadow-emerald-500/20 border-2 border-emerald-400/50 bg-slate-950 p-1">
                   <img
-                    src="/src/assets/images/pocket_wallet_icon_1792329987812.jpg"
-                    alt="أيقونة محفظة كاش الحي للتثبيت"
+                    src="/pwa-512x512.png"
+                    alt="أيقونة محفظة كاش الحي للتثبيت 512x512"
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover rounded-2xl"
                   />
                 </div>
                 <span className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-emerald-500 text-slate-950 font-bold text-[10px] rounded-full shadow whitespace-nowrap">
-                  أيقونة محفظة الجيب
+                  أيقونة محفظة الجيب (512×512)
                 </span>
               </div>
 
@@ -2049,6 +2051,23 @@ export const AdminPortal: React.FC = () => {
                     )}
                   </button>
                 </div>
+
+                {isInstallable && (
+                  <div className="pt-3 border-t border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+                    <span className="text-xs text-emerald-300 font-bold flex items-center gap-1.5">
+                      <Smartphone className="w-4 h-4 text-emerald-400" />
+                      <span>المتصفح جاهز للتثبيت الفوري بنقرة واحدة:</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={triggerInstall}
+                      className="py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/25 hover:opacity-95 transition cursor-pointer"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>تثبيت التطبيق الآن على هذا الجهاز</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Instructions for Android & iPhone */}

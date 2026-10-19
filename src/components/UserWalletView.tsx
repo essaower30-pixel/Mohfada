@@ -28,8 +28,6 @@ import {
   MapPin,
   PhoneCall,
   Coins,
-  Layers,
-  Zap,
   Share2,
 } from 'lucide-react';
 import QRCode from 'qrcode';
@@ -223,14 +221,14 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
     setTimeout(() => setToastMsg(''), 3000);
   };
 
-  // Active view section so user doesn't have to scroll down on mobile
-  const [activeSection, setActiveSection] = useState<'wallet' | 'quick_pay' | 'history' | 'admin_desk' | 'all'>('wallet');
+  // Active view section controlled exclusively by the mobile bottom toolbar
+  const [activeSection, setActiveSection] = useState<'wallet' | 'quick_pay' | 'history' | 'admin_desk'>('wallet');
 
-
-  const handleSelectSection = (section: 'wallet' | 'quick_pay' | 'history' | 'admin_desk' | 'all') => {
+  const handleSelectSection = (section: 'wallet' | 'quick_pay' | 'history' | 'admin_desk') => {
     setActiveSection(section);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
 
   const handleQuickPayContact = (contact: SavedContact) => {
     setPayIdentifier(contact.accountNumber || contact.phone);
@@ -252,86 +250,8 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
         </div>
       )}
 
-      {/* Top Quick Navigation Pills (For both Desktop & Quick Switching) */}
-      <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-slate-900/90 border border-slate-800 text-xs overflow-x-auto no-scrollbar shadow-md">
-        <button
-          type="button"
-          onClick={() => handleSelectSection('wallet')}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
-            activeSection === 'wallet'
-              ? 'bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 shadow-md font-black'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Wallet className="w-3.5 h-3.5" />
-          <span>المحفظة (الرئيسية)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSelectSection('quick_pay')}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
-            activeSection === 'quick_pay'
-              ? 'bg-teal-500 text-slate-950 shadow-md font-black'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Bookmark className="w-3.5 h-3.5" />
-          <span>جهات الدفع السريع</span>
-          {currentUser.savedContacts && currentUser.savedContacts.length > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-slate-950/80 text-teal-300 text-[10px] font-num">
-              {currentUser.savedContacts.length}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSelectSection('history')}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
-            activeSection === 'history'
-              ? 'bg-cyan-500 text-slate-950 shadow-md font-black'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Clock className="w-3.5 h-3.5" />
-          <span>سجل العمليات</span>
-          {userTransactions.length > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full bg-slate-950/80 text-cyan-300 text-[10px] font-num">
-              {userTransactions.length}
-            </span>
-          )}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSelectSection('admin_desk')}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
-            activeSection === 'admin_desk'
-              ? 'bg-amber-500 text-slate-950 shadow-md font-black'
-              : 'text-slate-400 hover:text-white'
-          }`}
-        >
-          <Building className="w-3.5 h-3.5" />
-          <span>إدارة كاش الحي (مقر الكاش)</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => handleSelectSection('all')}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl font-bold whitespace-nowrap transition cursor-pointer ${
-            activeSection === 'all'
-              ? 'bg-slate-700 text-white shadow-md font-black'
-              : 'text-slate-500 hover:text-slate-300'
-          }`}
-        >
-          <Layers className="w-3.5 h-3.5" />
-          <span>عرض الكل</span>
-        </button>
-      </div>
-
       {/* 1. Main Luxury Pocket Wallet Card (Styled Exactly as the User Image) */}
-      {(activeSection === 'wallet' || activeSection === 'all') && (
+      {activeSection === 'wallet' && (
         <div className="relative overflow-hidden rounded-[2.5rem] wallet-leather-card border-2 border-amber-500/50 p-4 sm:p-7 text-slate-100 shadow-2xl transition-all">
           {/* Subtle background ambient lights */}
           <div className="absolute top-0 right-1/4 -mt-16 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none"></div>
@@ -513,52 +433,12 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                 <span>باركود حسابي السريع</span>
               </button>
             </div>
-
-            {/* Quick in-card jumpers to sections (No scrolling needed!) */}
-            <div className="grid grid-cols-3 gap-2 pt-1 text-[11px]">
-              <button
-                type="button"
-                onClick={() => handleSelectSection('quick_pay')}
-                className="p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition flex flex-col items-center justify-center gap-1 cursor-pointer"
-              >
-                <Bookmark className="w-4 h-4 text-teal-400" />
-                <span className="font-bold">الدفع السريع</span>
-                <span className="text-[10px] text-slate-500 font-num">
-                  ({currentUser.savedContacts?.length || 0} جهات)
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSelectSection('history')}
-                className="p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition flex flex-col items-center justify-center gap-1 cursor-pointer"
-              >
-                <Clock className="w-4 h-4 text-cyan-400" />
-                <span className="font-bold">سجل العمليات</span>
-                <span className="text-[10px] text-slate-500 font-num">
-                  ({userTransactions.length} حركة)
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSelectSection('admin_desk')}
-                className="p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-900 border border-slate-800 text-slate-300 hover:text-white transition flex flex-col items-center justify-center gap-1 cursor-pointer"
-              >
-                <Building className="w-4 h-4 text-amber-400" />
-                <span className="font-bold">مقر الإدارة</span>
-                <span className="text-[10px] text-amber-400 font-bold">
-                  صرف وشحن
-                </span>
-              </button>
-            </div>
-
           </div>
         </div>
       )}
 
       {/* SPECIAL MANAGER CONTROLS: APPEAR ONLY IF USER IS THE MANAGER */}
-      {isAdmin && (activeSection === 'wallet' || activeSection === 'admin_desk' || activeSection === 'all') && (
+      {isAdmin && activeSection === 'admin_desk' && (
         <div className="bg-gradient-to-r from-amber-950/40 via-slate-900 to-slate-900 border-2 border-amber-500/40 rounded-3xl p-5 space-y-4 shadow-xl">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-amber-500/20">
             <div className="flex items-center gap-2.5">
@@ -645,7 +525,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
       )}
 
       {/* 2. جهات الدفع السريع المحفوظة (Saved Quick-Pay Contacts) */}
-      {(activeSection === 'quick_pay' || activeSection === 'all') && (
+      {activeSection === 'quick_pay' && (
         <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl animate-in fade-in">
           <div className="flex items-center justify-between pb-3 border-b border-slate-800">
             <div className="flex items-center gap-2">
@@ -732,7 +612,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
       )}
 
       {/* 3. شريط أسفل صفحته يتضمن الحركات والعمليات التي يجريها على الحساب */}
-      {(activeSection === 'history' || activeSection === 'all') && (
+      {activeSection === 'history' && (
         <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl p-5 space-y-4 shadow-xl animate-in fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
             <div className="flex items-center gap-2">
@@ -850,7 +730,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
       )}
 
       {/* 4. عنوان الإدارة ورقم التلفون لشحن وصرف الكاش يداً بيد */}
-      {(activeSection === 'admin_desk' || activeSection === 'all') && (
+      {activeSection === 'admin_desk' && (
         <div className="p-5 rounded-3xl bg-slate-900/90 border-2 border-slate-800 space-y-4 shadow-xl animate-in fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
             <div className="flex items-center gap-3">

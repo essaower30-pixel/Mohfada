@@ -28,6 +28,7 @@ function getInitialState(): LocalWalletState {
               ...u,
               username: u.username || 'admin',
               pin: u.pin || 'admin',
+              balance: 0,
               address: u.address || 'ساحة الحي الرئيسية - جانب جامع التقوى (مكتب إدارة كاش الحي)',
             };
           }
@@ -43,9 +44,7 @@ function getInitialState(): LocalWalletState {
         });
       }
       const curUser = parsed.users?.find((u: CommunityUser) => u.id === parsed.currentUserId);
-      if (curUser?.role !== 'admin') {
-        parsed.activeView = 'wallet';
-      }
+      parsed.activeView = curUser?.role === 'admin' ? 'admin' : 'wallet';
       parsed.adminVault = {
         ...INITIAL_ADMIN_VAULT,
         ...parsed.adminVault,
@@ -116,10 +115,11 @@ export function useCommunityWallet() {
   const adminUser = state.users.find((u) => u.role === 'admin') || state.users[0];
 
   const switchUser = (userId: string) => {
+    const targetUser = state.users.find((u) => u.id === userId);
     updateState((prev) => ({
       ...prev,
       currentUserId: userId,
-      activeView: 'wallet',
+      activeView: targetUser?.role === 'admin' ? 'admin' : 'wallet',
     }));
   };
 

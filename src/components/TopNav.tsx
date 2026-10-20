@@ -65,37 +65,6 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
 
         {/* Center / Right controls */}
         <div className="flex items-center gap-2">
-          {/* ONLY IF USER IS THE DESIGNATED MANAGER: show management switch tabs */}
-          {isAdmin && (
-            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-amber-500/30 text-xs shadow-inner">
-              <button
-                type="button"
-                onClick={() => setView('wallet')}
-                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                  state.activeView === 'wallet'
-                    ? 'bg-emerald-500 text-slate-950 shadow'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Wallet className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">محفظتي الشخصية</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setView('admin')}
-                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                  state.activeView === 'admin'
-                    ? 'bg-amber-500 text-slate-950 shadow'
-                    : 'text-amber-400 hover:text-amber-300'
-                }`}
-              >
-                <Building className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">إدارة وتزويد الكاش</span>
-              </button>
-            </div>
-          )}
-
           {/* PWA 1-Click Install Button */}
           {isInstallable && (
             <button
@@ -178,45 +147,44 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
                       {currentUser.accountNumber}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-400">الرصيد الشخصي:</span>
-                    <span className="font-bold text-white font-num">
-                      {currentUser.balance.toLocaleString()} ل.س
-                    </span>
-                  </div>
+                  {isAdmin ? (
+                    <>
+                      <div className="flex items-center justify-between pt-1 border-t border-slate-800">
+                        <span className="text-slate-400">الكاش الفعلي في الدرج:</span>
+                        <span className="font-bold text-amber-400 font-num">
+                          {state.adminVault.cashInDrawer.toLocaleString()} ل.س
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">رصيد الخزينة الرقمي:</span>
+                        <span className="font-bold text-emerald-400 font-num">
+                          {state.adminVault.digitalVaultBalance.toLocaleString()} ل.س
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-400">الرصيد المتوفر:</span>
+                      <span className="font-bold text-white font-num">
+                        {currentUser.balance.toLocaleString()} ل.س
+                      </span>
+                    </div>
+                  )}
                 </div>
 
-                {/* If Admin: Quick Link to Management Portal & Edit Profile */}
+                {/* If Admin: Quick Link to Edit Profile only (No personal wallet) */}
                 {isAdmin && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        setView(state.activeView === 'admin' ? 'wallet' : 'admin');
-                      }}
-                      className="w-full py-2 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <Building className="w-3.5 h-3.5 text-amber-400" />
-                      <span>
-                        {state.activeView === 'admin'
-                          ? 'العودة للمحفظة الشخصية'
-                          : 'فتح لوحة تزويد الرصيد وصندوق الكاش'}
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        setShowAdminProfile(true);
-                      }}
-                      className="w-full py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-                    >
-                      <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
-                      <span>تعديل البيانات الشخصية للإدارة</span>
-                    </button>
-                  </>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      setShowAdminProfile(true);
+                    }}
+                    className="w-full py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                    <span>تعديل بيانات الإدارة والمقر</span>
+                  </button>
                 )}
 
                 {/* Share App QR Button in Dropdown */}

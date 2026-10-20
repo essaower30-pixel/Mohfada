@@ -29,9 +29,8 @@ export default function App() {
     setIsBarcodeOpen(true);
   };
 
-  // Only the designated admin user can see the AdminPortal
+  // Admin has no personal wallet - directly opens AdminPortal (Vault & Cash Desk)
   const isAdmin = currentUser.role === 'admin';
-  const showAdminPortal = isAdmin && state.activeView === 'admin';
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Cairo',sans-serif]">
@@ -40,7 +39,7 @@ export default function App() {
 
       {/* Main Container */}
       <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-2.5 sm:py-6 pb-24 sm:pb-8">
-        {showAdminPortal ? (
+        {isAdmin ? (
           <AdminPortal />
         ) : (
           <UserWalletView

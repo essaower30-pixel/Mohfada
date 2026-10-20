@@ -10,7 +10,7 @@ export const INITIAL_USERS: CommunityUser[] = [
     role: 'admin',
     shopName: 'نقطة الكاش المعتمدة بالحي',
     address: 'ساحة الحي الرئيسية - جانب جامع التقوى (مكتب إدارة كاش الحي)',
-    balance: 750000,
+    balance: 0,
     pin: 'admin', // initial password: admin
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
     registeredAt: '2026-10-01',

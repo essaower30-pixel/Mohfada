@@ -442,12 +442,22 @@ export const AdminPortal: React.FC = () => {
         <div className="flex items-center gap-2 self-start sm:self-center">
           <button
             type="button"
-            onClick={() => setView('wallet')}
-            className="py-2.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-500/20 shrink-0 cursor-pointer active:scale-95"
-            title="الانتقال للمحفظة الشخصية"
+            onClick={() => setActiveTab('install_qr')}
+            className="py-2 px-3 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+            title="باركود فتح وتثبيت التطبيق للزبائن"
           >
-            <Wallet className="w-4 h-4" />
-            <span>محفظتي الشخصية</span>
+            <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+            <span>باركود التطبيق</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('edit_profile')}
+            className="py-2 px-3 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+            title="تعديل بيانات وهاتف الإدارة"
+          >
+            <Building className="w-3.5 h-3.5 text-amber-400" />
+            <span>بيانات المقر</span>
           </button>
         </div>
       </div>
@@ -2574,17 +2584,33 @@ export const AdminPortal: React.FC = () => {
             )}
           </button>
 
-          {/* 5. المحفظة الشخصية */}
+          {/* 5. المقر والإدارة */}
           <button
             type="button"
-            onClick={() => setView('wallet')}
-            className="flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer text-slate-400 hover:text-emerald-300 active:scale-95"
-            title="الانتقال للمحفظة الشخصية"
+            onClick={() => {
+              setActiveTab('edit_profile');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer ${
+              activeTab === 'edit_profile'
+                ? 'text-amber-300 font-black scale-105'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+            title="بيانات المقر والهاتف"
           >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-900/70 border border-slate-800 text-slate-400 hover:border-emerald-500/40 hover:text-emerald-300 transition-all">
-              <Wallet className="w-5 h-5 stroke-[2.2]" />
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                activeTab === 'edit_profile'
+                  ? 'bg-gradient-to-tr from-amber-500/30 to-yellow-400/20 border-2 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] text-amber-300'
+                  : 'bg-slate-900/70 border border-slate-800 text-slate-400'
+              }`}
+            >
+              <Building className="w-5 h-5 stroke-[2.2]" />
             </div>
-            <span className="text-[10px] mt-1 font-bold">المحفظة</span>
+            <span className="text-[10px] mt-1 font-bold">المقر</span>
+            {activeTab === 'edit_profile' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-0.5 animate-pulse"></span>
+            )}
           </button>
         </div>
       </nav>

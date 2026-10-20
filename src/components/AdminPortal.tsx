@@ -439,48 +439,12 @@ export const AdminPortal: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
-          <button
-            type="button"
-            onClick={() => setActiveTab('install_qr')}
-            className={`py-2.5 px-3.5 rounded-2xl font-extrabold text-xs flex items-center justify-center gap-2 transition border cursor-pointer shadow-sm active:scale-95 ${
-              activeTab === 'install_qr'
-                ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-emerald-500/20'
-                : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border-emerald-500/30'
-            }`}
-            title="عرض باركود ورابط تثبيت التطبيق للزبائن"
-          >
-            <QrCode className="w-4 h-4" />
-            <span>باركود التثبيت</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('edit_profile')}
-            className={`py-2.5 px-3.5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition border cursor-pointer shadow-sm active:scale-95 ${
-              activeTab === 'edit_profile'
-                ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-amber-500/20'
-                : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/30'
-            }`}
-            title="تعديل اسم المدير، رقم الموبايل، العنوان، واسم المستخدم"
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>تعديل بيانات الإدارة والمقر</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowChangePassword(true)}
-            className="py-2.5 px-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs flex items-center justify-center gap-2 transition border border-slate-700 cursor-pointer"
-          >
-            <KeyRound className="w-4 h-4 text-amber-400" />
-            <span>تغيير كلمة المرور</span>
-          </button>
-
+        <div className="flex items-center gap-2 self-start sm:self-center">
           <button
             type="button"
             onClick={() => setView('wallet')}
-            className="py-2.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-500/20 shrink-0 cursor-pointer"
+            className="py-2.5 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-500/20 shrink-0 cursor-pointer active:scale-95"
+            title="الانتقال للمحفظة الشخصية"
           >
             <Wallet className="w-4 h-4" />
             <span>محفظتي الشخصية</span>
@@ -627,8 +591,8 @@ export const AdminPortal: React.FC = () => {
         </div>
       </div>
 
-      {/* Tabs Menu */}
-      <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-2xl border border-slate-800 overflow-x-auto no-scrollbar">
+      {/* Tabs Menu (Desktop) */}
+      <div className="hidden sm:flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-2xl border border-slate-800 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('charge')}
           className={`py-2 px-3.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shrink-0 cursor-pointer ${
@@ -717,6 +681,63 @@ export const AdminPortal: React.FC = () => {
           <span>تعديل بيانات الإدارة والمقر</span>
         </button>
       </div>
+
+      {/* Mobile Sub-Navigation Pills (Shown only when in Subscribers/Tools on Mobile) */}
+      {(activeTab === 'new_user' || activeTab === 'lookup' || activeTab === 'install_qr' || activeTab === 'edit_profile') && (
+        <div className="flex sm:hidden items-center gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 text-xs overflow-x-auto no-scrollbar shadow-md">
+          <button
+            type="button"
+            onClick={() => setActiveTab('new_user')}
+            className={`py-1.5 px-3 rounded-xl font-bold flex items-center gap-1.5 shrink-0 transition cursor-pointer ${
+              activeTab === 'new_user'
+                ? 'bg-cyan-500 text-slate-950 shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>تسجيل جديد</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('lookup')}
+            className={`py-1.5 px-3 rounded-xl font-bold flex items-center gap-1.5 shrink-0 transition cursor-pointer ${
+              activeTab === 'lookup'
+                ? 'bg-indigo-500 text-white shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Search className="w-3.5 h-3.5" />
+            <span>استعلام وبحث</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('install_qr')}
+            className={`py-1.5 px-3 rounded-xl font-bold flex items-center gap-1.5 shrink-0 transition cursor-pointer ${
+              activeTab === 'install_qr'
+                ? 'bg-emerald-500 text-slate-950 shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span>باركود التطبيق</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('edit_profile')}
+            className={`py-1.5 px-3 rounded-xl font-bold flex items-center gap-1.5 shrink-0 transition cursor-pointer ${
+              activeTab === 'edit_profile'
+                ? 'bg-amber-500 text-slate-950 shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>بيانات المقر</span>
+          </button>
+        </div>
+      )}
 
       {/* TAB 1: Charge Balance against Cash (BY MOBILE NUMBER) */}
       {activeTab === 'charge' && (
@@ -2426,6 +2447,147 @@ export const AdminPortal: React.FC = () => {
         isOpen={showEditProfile}
         onClose={() => setShowEditProfile(false)}
       />
+
+      {/* Fixed Mobile Bottom Navigation Toolbar for Admin Portal (No Scrolling Needed) */}
+      <nav
+        aria-label="شريط أدوات الإدارة السريع"
+        className="fixed bottom-0 inset-x-0 z-40 bg-slate-900/95 backdrop-blur-md border-t border-amber-500/30 px-2 py-2 shadow-2xl pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:hidden"
+      >
+        <div className="max-w-md mx-auto grid grid-cols-5 gap-1 text-center">
+          {/* 1. تزويد رصيد (شحن) */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('charge');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer ${
+              activeTab === 'charge'
+                ? 'text-emerald-300 font-black scale-105'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                activeTab === 'charge'
+                  ? 'bg-gradient-to-tr from-emerald-500/30 to-teal-400/20 border-2 border-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)] text-emerald-300'
+                  : 'bg-slate-900/70 border border-slate-800 text-slate-400'
+              }`}
+            >
+              <PlusCircle className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <span className="text-[10px] mt-1 font-bold">تزويد رصيد</span>
+            {activeTab === 'charge' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-0.5 animate-pulse"></span>
+            )}
+          </button>
+
+          {/* 2. صرف كاش (سحب) */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('withdraw');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer ${
+              activeTab === 'withdraw'
+                ? 'text-amber-300 font-black scale-105'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                activeTab === 'withdraw'
+                  ? 'bg-gradient-to-tr from-amber-500/30 to-yellow-400/20 border-2 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] text-amber-300'
+                  : 'bg-slate-900/70 border border-slate-800 text-slate-400'
+              }`}
+            >
+              <ArrowDownToLine className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <span className="text-[10px] mt-1 font-bold">صرف كاش</span>
+            {activeTab === 'withdraw' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-0.5 animate-pulse"></span>
+            )}
+          </button>
+
+          {/* 3. المشتركون */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('new_user');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer relative ${
+              activeTab === 'new_user' || activeTab === 'lookup'
+                ? 'text-cyan-300 font-black scale-105'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all relative ${
+                activeTab === 'new_user' || activeTab === 'lookup'
+                  ? 'bg-gradient-to-tr from-cyan-500/30 to-blue-400/20 border-2 border-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.4)] text-cyan-300'
+                  : 'bg-slate-900/70 border border-slate-800 text-slate-400'
+              }`}
+            >
+              <Users className="w-5 h-5 stroke-[2.2]" />
+              <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-cyan-400 text-slate-950 text-[10px] font-black flex items-center justify-center font-num shadow">
+                {totalRegisteredUsers}
+              </span>
+            </div>
+            <span className="text-[10px] mt-1 font-bold">المشتركون</span>
+            {(activeTab === 'new_user' || activeTab === 'lookup') && (
+              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 mt-0.5 animate-pulse"></span>
+            )}
+          </button>
+
+          {/* 4. التقارير */}
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('reports');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className={`flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer relative ${
+              activeTab === 'reports'
+                ? 'text-indigo-300 font-black scale-105'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all relative ${
+                activeTab === 'reports'
+                  ? 'bg-gradient-to-tr from-indigo-500/30 to-violet-400/20 border-2 border-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.4)] text-indigo-300'
+                  : 'bg-slate-900/70 border border-slate-800 text-slate-400'
+              }`}
+            >
+              <BarChart3 className="w-5 h-5 stroke-[2.2]" />
+              {state.transactions.length > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 rounded-full bg-indigo-400 text-white text-[10px] font-black flex items-center justify-center font-num shadow">
+                  {state.transactions.length}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] mt-1 font-bold">التقارير</span>
+            {activeTab === 'reports' && (
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-0.5 animate-pulse"></span>
+            )}
+          </button>
+
+          {/* 5. المحفظة الشخصية */}
+          <button
+            type="button"
+            onClick={() => setView('wallet')}
+            className="flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer text-slate-400 hover:text-emerald-300 active:scale-95"
+            title="الانتقال للمحفظة الشخصية"
+          >
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-900/70 border border-slate-800 text-slate-400 hover:border-emerald-500/40 hover:text-emerald-300 transition-all">
+              <Wallet className="w-5 h-5 stroke-[2.2]" />
+            </div>
+            <span className="text-[10px] mt-1 font-bold">المحفظة</span>
+          </button>
+        </div>
+      </nav>
     </div>
   );
 };

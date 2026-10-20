@@ -13,6 +13,10 @@ import {
   AlertCircle,
   Eye,
   EyeOff,
+  HelpCircle,
+  MessageCircle,
+  ShieldAlert,
+  RotateCcw,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCommunityWallet } from '../services/walletState';
@@ -20,6 +24,20 @@ import { useCommunityWallet } from '../services/walletState';
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+function formatPhoneForWhatsApp(rawPhone: string): string {
+  let digits = rawPhone.replace(/[^0-9]/g, '');
+  if (digits.startsWith('00')) {
+    digits = digits.slice(2);
+  }
+  // Standard Syrian mobile: 09xxxxxxxx (10 digits) -> 9639xxxxxxxx
+  if (digits.startsWith('09') && digits.length === 10) {
+    digits = '963' + digits.slice(1);
+  } else if (digits.startsWith('9') && digits.length === 9) {
+    digits = '963' + digits;
+  }
+  return digits;
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
@@ -34,6 +52,17 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [loginError, setLoginError] = useState('');
 
+  // Password attempts tracking (3 attempts limit)
+  const [failedAttempts, setFailedAttempts] = useState(0);
+
+  // WhatsApp recovery info
+  const [whatsappSentInfo, setWhatsappSentInfo] = useState<{
+    name: string;
+    phone: string;
+    url: string;
+    pin: string;
+  } | null>(null);
+
   // Register form state
   const [regName, setRegName] = useState('');
   const [regPhone, setRegPhone] = useState('');
@@ -46,9 +75,74 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
+  const handleForgotPassword = () => {
+    setLoginError('');
+    const clean = loginIdentifier.trim().toLowerCase();
+    if (!clean) {
+      setLoginError(
+        'يرجى كتابة رقم الموبايل أو اسم المستخدم في الحقل أعلاه أولاً للتعرف على حسابك وإرسال كلمة السر إليه.'
+      );
+      return;
+    }
+
+    const found = state.users.find(
+      (u) =>
+        (u.username && u.username.toLowerCase() === clean) ||
+        u.phone === loginIdentifier.trim() ||
+        u.phone.replace(/\s+/g, '') === loginIdentifier.trim().replace(/\s+/g, '') ||
+        u.accountNumber.toLowerCase() === clean
+    );
+
+    if (!found) {
+      setLoginError(
+        'لم يتم العثور على حساب مسجل برقم الموبايل أو اسم المستخدم هذا. يرجى التأكد من الرقم أو تسجيل حساب جديد.'
+      );
+      return;
+    }
+
+    const pin = found.pin || '1234';
+    const cleanPhone = formatPhoneForWhatsApp(found.phone);
+
+    const whatsappMsg =
+      `*محفظة كاش الحي • بديل محفظة الجيب* 💳\n\n` +
+      `مرحباً بك أخي/أختي: *${found.shopName || found.name}*\n` +
+      `لقد تم طلب استعادة كلمة المرور لحسابك في *محفظة كاش الحي*.\n\n` +
+      `🔑 *كلمة المرور / رمز الدخول الخاص بك:* \`${pin}\`\n` +
+      `📋 *رقم الحساب:* ${found.accountNumber}\n` +
+      `📱 *رقم الموبايل المسجل:* ${found.phone}\n\n` +
+      `⚠️ *تنبيه أمان:* يرجى الحفاظ على سرية كلمة المرور وعدم مشاركتها مع أي شخص لضمان أمان رصيدك المالي.\n` +
+      `—\n` +
+      `*إدارة محفظة كاش الحي*`;
+
+    const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(
+      whatsappMsg
+    )}`;
+
+    setWhatsappSentInfo({
+      name: found.shopName || found.name,
+      phone: found.phone,
+      url: waUrl,
+      pin: pin,
+    });
+
+    // Auto-open WhatsApp link
+    const a = document.createElement('a');
+    a.href = waUrl;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.click();
+  };
+
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
+
+    if (failedAttempts >= 3) {
+      setLoginError(
+        'تم استنفاد 3 محاولات خاطئة! تم قفل الدخول لحماية الحساب. اضغط على "هل نسيت كلمة السر؟" لاستلامها عبر الواتس اب.'
+      );
+      return;
+    }
 
     const clean = loginIdentifier.trim().toLowerCase();
     if (!clean) {
@@ -75,11 +169,26 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     }
 
     if (found.pin && found.pin !== loginPassword) {
-      setLoginError('كلمة المرور غير صحيحة. يرجى المحاولة مجدداً.');
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+      const remaining = 3 - newAttempts;
+      if (remaining > 0) {
+        setLoginError(
+          `كلمة المرور غير صحيحة! متبقي لديك ${
+            remaining === 1 ? 'محاولة واحدة فقط' : `${remaining} محاولات`
+          }.`
+        );
+      } else {
+        setLoginError(
+          'تم استنفاد 3 محاولات خاطئة! تم قفل الدخول مؤقتاً لحماية الحساب. اضغط على "هل نسيت كلمة السر؟" لإرسال كلمة السر إلى الواتس اب باسم المحفظة.'
+        );
+      }
       return;
     }
 
     // Switch user and save session
+    setFailedAttempts(0);
+    setWhatsappSentInfo(null);
     switchUser(found.id);
     confetti({ particleCount: 50, spread: 60 });
     onClose();
@@ -223,6 +332,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                     onChange={(e) => {
                       setLoginIdentifier(e.target.value);
                       setLoginError('');
+                      if (failedAttempts > 0) {
+                        setFailedAttempts(0);
+                      }
+                      if (whatsappSentInfo) {
+                        setWhatsappSentInfo(null);
+                      }
                     }}
                     placeholder="09xxxxxxxx أو اسم المستخدم"
                     className="w-full bg-slate-950 text-white placeholder-slate-400 text-sm sm:text-base font-bold rounded-2xl px-4 py-3 border-2 border-slate-600 focus:border-emerald-400 focus:bg-slate-900 focus:ring-4 focus:ring-emerald-500/20 outline-none transition shadow-inner"
@@ -233,20 +348,35 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
 
               {/* Password Input Box */}
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-slate-200 mb-1.5">
-                  كلمة المرور / رمز الدخول *
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs sm:text-sm font-bold text-slate-200">
+                    كلمة المرور / رمز الدخول *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-xs font-bold text-emerald-400 hover:text-emerald-300 transition cursor-pointer flex items-center gap-1 group"
+                  >
+                    <HelpCircle className="w-3.5 h-3.5 text-emerald-400 group-hover:scale-110 transition" />
+                    <span className="underline underline-offset-4">هل نسيت كلمة السر؟</span>
+                  </button>
+                </div>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
+                    disabled={failedAttempts >= 3}
                     value={loginPassword}
                     onChange={(e) => {
                       setLoginPassword(e.target.value);
                       setLoginError('');
                     }}
                     placeholder="••••••••"
-                    className="w-full bg-slate-950 text-white placeholder-slate-400 text-sm sm:text-base font-bold rounded-2xl px-4 py-3 border-2 border-slate-600 focus:border-emerald-400 focus:bg-slate-900 focus:ring-4 focus:ring-emerald-500/20 outline-none transition shadow-inner"
+                    className={`w-full bg-slate-950 text-white placeholder-slate-400 text-sm sm:text-base font-bold rounded-2xl px-4 py-3 border-2 outline-none transition shadow-inner ${
+                      failedAttempts >= 3
+                        ? 'border-rose-500/50 opacity-60 cursor-not-allowed'
+                        : 'border-slate-600 focus:border-emerald-400 focus:bg-slate-900 focus:ring-4 focus:ring-emerald-500/20'
+                    }`}
                   />
                   <button
                     type="button"
@@ -256,24 +386,98 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
+
+                {/* Remaining Attempts Indicator */}
+                {failedAttempts > 0 && failedAttempts < 3 && (
+                  <div className="mt-1.5 flex items-center justify-between text-[11px] px-1 text-amber-300 font-bold animate-in fade-in">
+                    <span className="flex items-center gap-1">
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-400" />
+                      <span>محاولات الدخول: {failedAttempts} من 3</span>
+                    </span>
+                    <span className="text-rose-400">
+                      متبقي {3 - failedAttempts === 1 ? 'محاولة واحدة فقط' : `${3 - failedAttempts} محاولات`}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Error Box */}
               {loginError && (
-                <div className="p-3.5 rounded-2xl bg-rose-500/15 border-2 border-rose-500/30 text-rose-300 text-xs sm:text-sm flex items-start gap-2">
+                <div className="p-3.5 rounded-2xl bg-rose-500/15 border-2 border-rose-500/30 text-rose-300 text-xs sm:text-sm flex items-start gap-2 animate-in fade-in">
                   <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
                   <p className="leading-relaxed font-semibold">{loginError}</p>
                 </div>
               )}
 
+              {/* WhatsApp Recovery Confirmation Card */}
+              {whatsappSentInfo && (
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-950/80 via-slate-900 to-teal-950/70 border-2 border-emerald-500/50 text-xs space-y-3 animate-in fade-in zoom-in-95 shadow-xl">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-300 font-extrabold text-sm">
+                      <MessageCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>إرسال كلمة السر عبر الواتس اب</span>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30">
+                      باسم المحفظة
+                    </span>
+                  </div>
+
+                  <p className="text-slate-300 text-xs leading-relaxed">
+                    تم تجهيز رسالة استعادة كلمة المرور رسمياً باسم <strong className="text-emerald-300">محفظة كاش الحي</strong> لحساب المشترك ({whatsappSentInfo.name}) على رقم الواتساب ({whatsappSentInfo.phone}).
+                  </p>
+
+                  <a
+                    href={whatsappSentInfo.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 transition cursor-pointer"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>فتح واتساب لإرسال واستلام كلمة السر</span>
+                  </a>
+
+                  <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400">
+                    <span>تم فتح الرابط تلقائياً</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFailedAttempts(0);
+                        setWhatsappSentInfo(null);
+                        setLoginError('');
+                      }}
+                      className="text-emerald-400 hover:underline flex items-center gap-1 font-bold cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>إعادة المحاولة بعد استلام الرمز</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Submit Login Button */}
-              <button
-                type="submit"
-                className="w-full py-3.5 rounded-2xl font-black text-sm sm:text-base bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 shadow-lg shadow-emerald-500/25 active:scale-[0.99] transition flex items-center justify-center gap-2 cursor-pointer mt-2"
-              >
-                <LogIn className="w-5 h-5" />
-                <span>دخول للمحفظة</span>
-              </button>
+              {failedAttempts >= 3 ? (
+                <div className="space-y-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="w-full py-3.5 rounded-2xl font-black text-sm sm:text-base bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 shadow-lg shadow-emerald-500/25 active:scale-[0.99] transition flex items-center justify-center gap-2 cursor-pointer animate-pulse"
+                  >
+                    <MessageCircle className="w-5 h-5" />
+                    <span>إرسال كلمة السر إلى الواتس اب (باسم المحفظة)</span>
+                  </button>
+                  <p className="text-[11px] text-center text-amber-300/90 font-medium">
+                    ⚠️ استنفدت 3 محاولات خاطئة. يرجى استلام كلمة السر عبر واتساب للمتابعة.
+                  </p>
+                </div>
+              ) : (
+                <button
+                  type="submit"
+                  className="w-full py-3.5 rounded-2xl font-black text-sm sm:text-base bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 shadow-lg shadow-emerald-500/25 active:scale-[0.99] transition flex items-center justify-center gap-2 cursor-pointer mt-2"
+                >
+                  <LogIn className="w-5 h-5" />
+                  <span>دخول للمحفظة</span>
+                </button>
+              )}
             </form>
           </div>
         ) : (

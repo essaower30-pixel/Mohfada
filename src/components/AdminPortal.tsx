@@ -74,6 +74,20 @@ export const AdminPortal: React.FC = () => {
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
   const [activeTab, setActiveTab] = useState<'charge' | 'withdraw' | 'new_user' | 'lookup' | 'reports' | 'install_qr' | 'edit_profile'>('charge');
+  const tabContentRef = React.useRef<HTMLDivElement>(null);
+
+  const handleTabChange = (newTab: 'charge' | 'withdraw' | 'new_user' | 'lookup' | 'reports' | 'install_qr' | 'edit_profile') => {
+    setActiveTab(newTab);
+    setTimeout(() => {
+      if (tabContentRef.current) {
+        const yOffset = -72; // Header compensation
+        const y = tabContentRef.current.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }, 40);
+  };
 
   // App Installation QR & Link states
   const [installQrUrl, setInstallQrUrl] = useState('');
@@ -420,191 +434,46 @@ export const AdminPortal: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Return to Personal Wallet Bar + Admin Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-amber-500/15 via-slate-900 to-slate-900 border-2 border-amber-500/40 rounded-3xl p-5 shadow-xl">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
-            <Building className="w-6 h-6" />
+      {/* Slim Admin Top Status Bar */}
+      <div className="flex items-center justify-between gap-3 bg-gradient-to-r from-amber-500/10 via-slate-900 to-slate-900 border border-amber-500/30 rounded-2xl px-3.5 py-2.5 shadow-md">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+            <Building className="w-4 h-4" />
           </div>
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-              <span>لوحة تزويد الرصيد وصندوق كاش الحي</span>
-              <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-                صلاحية المدير
+          <div className="min-w-0">
+            <h2 className="text-xs sm:text-sm font-bold text-white flex items-center gap-1.5 truncate">
+              <span>صندوق كاش الحي</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
+                لوحة الإدارة
               </span>
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              تزويد المستخدمين بالرصيد برقم الموبايل مقابل كاش، وتبديل النقاط لكاش ورقي، وتسجيل المشتركين
+            <p className="text-[10px] text-slate-400 truncate font-num">
+              كاش الدرج: <span className="text-amber-400 font-bold">{state.adminVault.cashInDrawer.toLocaleString()} ل.س</span> • الخزينة: <span className="text-emerald-400 font-bold">{state.adminVault.digitalVaultBalance.toLocaleString()} ل.س</span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-center">
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
-            onClick={() => setActiveTab('install_qr')}
-            className="py-2 px-3 rounded-2xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
+            onClick={() => handleTabChange('install_qr')}
+            className={`py-1.5 px-2.5 rounded-xl border text-[11px] font-bold flex items-center gap-1 transition cursor-pointer ${
+              activeTab === 'install_qr'
+                ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow'
+                : 'bg-slate-900 text-emerald-400 border-emerald-500/30 hover:bg-slate-800'
+            }`}
             title="باركود فتح وتثبيت التطبيق للزبائن"
           >
-            <QrCode className="w-3.5 h-3.5 text-emerald-400" />
-            <span>باركود التطبيق</span>
+            <QrCode className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">باركود التطبيق</span>
           </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('edit_profile')}
-            className="py-2 px-3 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer"
-            title="تعديل بيانات وهاتف الإدارة"
-          >
-            <Building className="w-3.5 h-3.5 text-amber-400" />
-            <span>بيانات المقر</span>
-          </button>
-        </div>
-      </div>
-
-      {/* 6 Stat Cards of Admin Dashboard with Requested Customer Count & Transfer Returns */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
-        {/* Card 1: Registered Customers Count */}
-        <div
-          onClick={() => setActiveTab('reports')}
-          className="bg-slate-900 border-2 border-cyan-500/30 hover:border-cyan-400/60 rounded-2xl p-4 transition cursor-pointer hover:shadow-lg hover:shadow-cyan-500/10 group"
-          title="انقر لفتح تقرير تفاعل المشتركين وتفاصيل الزبائن"
-        >
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
-            <span className="font-semibold text-slate-300">عدد الزبائن المسجلين</span>
-            <div className="w-7 h-7 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition">
-              <Users className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-xl font-extrabold text-white font-num flex items-baseline gap-1">
-            <span>{totalRegisteredUsers}</span>
-            <span className="text-xs font-normal text-cyan-300">مشترك</span>
-          </p>
-          <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-800">
-            <span>{residentsCount} مواطن • {merchantsCount} متجر</span>
-            <span className="text-cyan-400 font-bold group-hover:underline text-[10px]">عرض ←</span>
-          </div>
-        </div>
-
-        {/* Card 2: Admin Revenue / Returns from User Transfers */}
-        <div
-          onClick={() => {
-            setActiveTab('reports');
-            setReportFilter('fees');
-          }}
-          className="bg-gradient-to-br from-amber-500/15 via-slate-900 to-slate-900 border-2 border-amber-500/40 hover:border-amber-400 rounded-2xl p-4 transition cursor-pointer hover:shadow-lg hover:shadow-amber-500/15 group"
-          title="المبلغ الذي عاد للإدارة جراء رسوم وعمولات التحويل بين المستخدمين"
-        >
-          <div className="flex items-center justify-between text-xs text-amber-300/90 mb-1.5">
-            <span className="font-bold">عائدات الإدارة من التحويل</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-xl font-black text-amber-400 font-num flex items-baseline gap-1">
-            <span>{totalAdminTransferFees.toLocaleString()}</span>
-            <span className="text-xs font-normal text-amber-300/80">ل.س</span>
-          </p>
-          <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-800">
-            <span className="text-amber-300/90 font-medium">عمولة {((state.adminVault.transferFeeRate ?? 0.01) * 100).toFixed(1)}%</span>
-            <span className="text-amber-400 font-bold group-hover:underline text-[10px]">السجل ←</span>
-          </div>
-        </div>
-
-        {/* Card 3: Deposited Amounts (Cash Charges) */}
-        <div
-          onClick={() => {
-            setActiveTab('reports');
-            setReportFilter('deposits');
-          }}
-          className="bg-slate-900 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-4 transition cursor-pointer hover:shadow-md group"
-          title="المبالغ المقبوضة كاش وتم شحنها لأرصدة المشتركين"
-        >
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
-            <span className="font-semibold text-slate-300">المبالغ المودعة (الشحن)</span>
-            <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition">
-              <PlusCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-xl font-extrabold text-emerald-400 font-num">
-            {totalDepositedAmount.toLocaleString()}
-            <span className="text-xs font-normal text-slate-400 mr-1">ل.س</span>
-          </p>
-          <p className="text-[11px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-800">
-            {depositTxs.length} عملية شحن رصيد نقداً
-          </p>
-        </div>
-
-        {/* Card 4: Withdrawn Amounts (Cash Payouts) */}
-        <div
-          onClick={() => {
-            setActiveTab('reports');
-            setReportFilter('withdrawals');
-          }}
-          className="bg-slate-900 border border-slate-800 hover:border-rose-500/50 rounded-2xl p-4 transition cursor-pointer hover:shadow-md group"
-          title="المبالغ التي تم صرفها وتسليمها كاش ورقي للزبائن"
-        >
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
-            <span className="font-semibold text-slate-300">المبالغ المسحوبة (الصرف)</span>
-            <div className="w-7 h-7 rounded-lg bg-rose-500/15 flex items-center justify-center text-rose-400 group-hover:scale-110 transition">
-              <ArrowDownToLine className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-xl font-extrabold text-rose-400 font-num">
-            {totalWithdrawnAmount.toLocaleString()}
-            <span className="text-xs font-normal text-slate-400 mr-1">ل.س</span>
-          </p>
-          <p className="text-[11px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-800">
-            {withdrawTxs.length} عملية تسليم كاش ورقي
-          </p>
-        </div>
-
-        {/* Card 5: User Transfers Total Volume */}
-        <div
-          onClick={() => {
-            setActiveTab('reports');
-            setReportFilter('transfers');
-          }}
-          className="bg-slate-900 border border-slate-800 hover:border-blue-500/50 rounded-2xl p-4 transition cursor-pointer hover:shadow-md group"
-          title="إجمالي حركة التداول والدفع بين المستخدمين"
-        >
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
-            <span className="font-semibold text-slate-300">التحويلات بين المستخدمين</span>
-            <div className="w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center text-blue-400 group-hover:scale-110 transition">
-              <ArrowRightLeft className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-xl font-extrabold text-blue-400 font-num">
-            {totalTransfersAmount.toLocaleString()}
-            <span className="text-xs font-normal text-slate-400 mr-1">ل.س</span>
-          </p>
-          <p className="text-[11px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-800">
-            {userTransferTxs.length} تحويل ودفع مشتريات
-          </p>
-        </div>
-
-        {/* Card 6: Cash in Drawer & Vault */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
-            <span className="font-semibold text-slate-300">الكاش الفعلي في الدرج</span>
-            <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-400">
-              <Banknote className="w-4 h-4" />
-            </div>
-          </div>
-          <p className="text-xl font-extrabold text-white font-num">
-            {state.adminVault.cashInDrawer.toLocaleString()}
-            <span className="text-xs font-normal text-slate-400 mr-1">ل.س</span>
-          </p>
-          <p className="text-[11px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-800 truncate" title="رصيد الخزينة الرقمي المتاح">
-            الخزينة: {state.adminVault.digitalVaultBalance.toLocaleString()} ل.س
-          </p>
         </div>
       </div>
 
       {/* Tabs Menu (Desktop) */}
       <div className="hidden sm:flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-2xl border border-slate-800 overflow-x-auto no-scrollbar">
         <button
-          onClick={() => setActiveTab('charge')}
+          onClick={() => handleTabChange('charge')}
           className={`py-2 px-3.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shrink-0 cursor-pointer ${
             activeTab === 'charge'
               ? 'bg-emerald-500 text-slate-950 shadow'
@@ -616,7 +485,7 @@ export const AdminPortal: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('withdraw')}
+          onClick={() => handleTabChange('withdraw')}
           className={`py-2 px-3.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shrink-0 cursor-pointer ${
             activeTab === 'withdraw'
               ? 'bg-amber-500 text-slate-950 shadow'
@@ -628,7 +497,7 @@ export const AdminPortal: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('reports')}
+          onClick={() => handleTabChange('reports')}
           className={`py-2 px-4 rounded-xl text-xs font-extrabold flex items-center gap-2 transition shrink-0 cursor-pointer border ${
             activeTab === 'reports'
               ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white border-indigo-400/50 shadow-lg shadow-indigo-500/25'
@@ -643,7 +512,7 @@ export const AdminPortal: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('new_user')}
+          onClick={() => handleTabChange('new_user')}
           className={`py-2 px-3.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shrink-0 cursor-pointer ${
             activeTab === 'new_user'
               ? 'bg-cyan-500 text-slate-950 shadow'
@@ -655,7 +524,7 @@ export const AdminPortal: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('lookup')}
+          onClick={() => handleTabChange('lookup')}
           className={`py-2 px-3.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shrink-0 cursor-pointer ${
             activeTab === 'lookup'
               ? 'bg-indigo-500 text-white shadow'
@@ -667,7 +536,7 @@ export const AdminPortal: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('install_qr')}
+          onClick={() => handleTabChange('install_qr')}
           className={`py-2 px-3.5 rounded-xl text-xs font-extrabold flex items-center gap-2 transition shrink-0 cursor-pointer border ${
             activeTab === 'install_qr'
               ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 border-emerald-400 shadow-lg shadow-emerald-500/25'
@@ -680,7 +549,7 @@ export const AdminPortal: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('edit_profile')}
+          onClick={() => handleTabChange('edit_profile')}
           className={`py-2 px-3.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shrink-0 cursor-pointer ${
             activeTab === 'edit_profile'
               ? 'bg-amber-500 text-slate-950 shadow shadow-amber-500/20'
@@ -697,7 +566,7 @@ export const AdminPortal: React.FC = () => {
         <div className="flex sm:hidden items-center gap-1.5 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 text-xs overflow-x-auto no-scrollbar shadow-md">
           <button
             type="button"
-            onClick={() => setActiveTab('new_user')}
+            onClick={() => handleTabChange('new_user')}
             className={`py-1.5 px-3 rounded-xl font-bold flex items-center gap-1.5 shrink-0 transition cursor-pointer ${
               activeTab === 'new_user'
                 ? 'bg-cyan-500 text-slate-950 shadow'
@@ -710,7 +579,7 @@ export const AdminPortal: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => setActiveTab('lookup')}
+            onClick={() => handleTabChange('lookup')}
             className={`py-1.5 px-3 rounded-xl font-bold flex items-center gap-1.5 shrink-0 transition cursor-pointer ${
               activeTab === 'lookup'
                 ? 'bg-indigo-500 text-white shadow'
@@ -723,7 +592,7 @@ export const AdminPortal: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => setActiveTab('install_qr')}
+            onClick={() => handleTabChange('install_qr')}
             className={`py-1.5 px-3 rounded-xl font-bold flex items-center gap-1.5 shrink-0 transition cursor-pointer ${
               activeTab === 'install_qr'
                 ? 'bg-emerald-500 text-slate-950 shadow'
@@ -736,7 +605,7 @@ export const AdminPortal: React.FC = () => {
 
           <button
             type="button"
-            onClick={() => setActiveTab('edit_profile')}
+            onClick={() => handleTabChange('edit_profile')}
             className={`py-1.5 px-3 rounded-xl font-bold flex items-center gap-1.5 shrink-0 transition cursor-pointer ${
               activeTab === 'edit_profile'
                 ? 'bg-amber-500 text-slate-950 shadow'
@@ -748,6 +617,9 @@ export const AdminPortal: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Main Tab Content Container (Target for auto-scrolling directly to contents) */}
+      <div ref={tabContentRef} className="scroll-mt-24 space-y-6">
 
       {/* TAB 1: Charge Balance against Cash (BY MOBILE NUMBER) */}
       {activeTab === 'charge' && (
@@ -1328,14 +1200,66 @@ export const AdminPortal: React.FC = () => {
                 </div>
               ) : null
             ) : (
-              <div className="py-8 px-4 text-center rounded-2xl bg-slate-950/60 border border-dashed border-slate-800 text-slate-400 space-y-2">
-                <Search className="w-8 h-8 text-slate-600 mx-auto" />
-                <p className="text-xs font-bold text-slate-300">
-                  الاستعلام يتم حصراً عبر رقم الموبايل
-                </p>
-                <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
-                  حفاظاً على خصوصية السكان، لا تظهر قوائم المشتركين للعامة. اكتب رقم هاتف المشترك للاستعلام عن حسابه.
-                </p>
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                    <Users className="w-4 h-4 text-cyan-400" />
+                    <span>المشتركون المسجلون في الحي ({registeredUsers.length})</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleTabChange('new_user')}
+                    className="text-xs font-bold px-2.5 py-1 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-300 border border-cyan-500/30 transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <UserPlus className="w-3.5 h-3.5" />
+                    <span>+ تسجيل جديد</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2 max-h-72 overflow-y-auto no-scrollbar">
+                  {registeredUsers.map((user) => (
+                    <div
+                      key={user.id}
+                      className="p-3 bg-slate-950 rounded-2xl border border-slate-800 flex items-center justify-between gap-3 text-xs hover:border-slate-700 transition"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img
+                          src={user.avatar}
+                          alt={user.name}
+                          className="w-9 h-9 rounded-xl object-cover border border-slate-700 shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-white truncate">
+                              {user.shopName || user.name}
+                            </span>
+                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-slate-800 text-slate-300">
+                              {user.role === 'merchant' ? 'متجر' : 'مواطن'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-num font-mono">
+                            {user.phone}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="font-bold text-emerald-400 font-num text-xs">
+                          {user.balance.toLocaleString()} ل.س
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLookupPhone(user.phone);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 font-bold text-[11px] border border-indigo-500/30 transition cursor-pointer"
+                        >
+                          عرض
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -1376,6 +1300,136 @@ export const AdminPortal: React.FC = () => {
                 <Printer className="w-3.5 h-3.5 text-indigo-400" />
                 <span>طباعة التقرير</span>
               </button>
+            </div>
+          </div>
+
+          {/* 6 Stat Cards of Admin Financial & Customer Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+            {/* Card 1: Registered Customers Count */}
+            <div
+              onClick={() => {
+                setReportFilter('all');
+                setCustomerSearch('');
+              }}
+              className="bg-slate-950 border-2 border-cyan-500/30 hover:border-cyan-400/60 rounded-2xl p-4 transition cursor-pointer hover:shadow-lg hover:shadow-cyan-500/10 group"
+              title="انقر لعرض تفاعل المشتركين والزبائن"
+            >
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                <span className="font-semibold text-slate-300">الزبائن المسجلون</span>
+                <div className="w-7 h-7 rounded-lg bg-cyan-500/20 flex items-center justify-center text-cyan-400 group-hover:scale-110 transition">
+                  <Users className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-xl font-extrabold text-white font-num flex items-baseline gap-1">
+                <span>{totalRegisteredUsers}</span>
+                <span className="text-xs font-normal text-cyan-300">مشترك</span>
+              </p>
+              <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-800">
+                <span>{residentsCount} مواطن • {merchantsCount} متجر</span>
+                <span className="text-cyan-400 font-bold group-hover:underline text-[10px]">عرض ←</span>
+              </div>
+            </div>
+
+            {/* Card 2: Admin Revenue / Returns from User Transfers */}
+            <div
+              onClick={() => setReportFilter('fees')}
+              className="bg-gradient-to-br from-amber-500/15 via-slate-950 to-slate-900 border-2 border-amber-500/40 hover:border-amber-400 rounded-2xl p-4 transition cursor-pointer hover:shadow-lg hover:shadow-amber-500/15 group"
+              title="المبلغ الذي عاد للإدارة جراء رسوم وعمولات التحويل بين المستخدمين"
+            >
+              <div className="flex items-center justify-between text-xs text-amber-300/90 mb-1.5">
+                <span className="font-bold">عائدات الإدارة من التحويل</span>
+                <div className="w-7 h-7 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-400 group-hover:scale-110 transition">
+                  <TrendingUp className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-xl font-black text-amber-400 font-num flex items-baseline gap-1">
+                <span>{totalAdminTransferFees.toLocaleString()}</span>
+                <span className="text-xs font-normal text-amber-300/80">ل.س</span>
+              </p>
+              <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-800">
+                <span className="text-amber-300/90 font-medium">عمولة {((state.adminVault.transferFeeRate ?? 0.01) * 100).toFixed(1)}%</span>
+                <span className="text-amber-400 font-bold group-hover:underline text-[10px]">السجل ←</span>
+              </div>
+            </div>
+
+            {/* Card 3: Deposited Amounts (Cash Charges) */}
+            <div
+              onClick={() => setReportFilter('deposits')}
+              className="bg-slate-950 border border-slate-800 hover:border-emerald-500/50 rounded-2xl p-4 transition cursor-pointer hover:shadow-md group"
+              title="المبالغ المقبوضة كاش وتم شحنها لأرصدة المشتركين"
+            >
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                <span className="font-semibold text-slate-300">المبالغ المودعة (الشحن)</span>
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition">
+                  <PlusCircle className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-xl font-extrabold text-emerald-400 font-num">
+                {totalDepositedAmount.toLocaleString()}
+                <span className="text-xs font-normal text-slate-400 mr-1">ل.س</span>
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-800">
+                {depositTxs.length} عملية شحن رصيد نقداً
+              </p>
+            </div>
+
+            {/* Card 4: Withdrawn Amounts (Cash Payouts) */}
+            <div
+              onClick={() => setReportFilter('withdrawals')}
+              className="bg-slate-950 border border-slate-800 hover:border-rose-500/50 rounded-2xl p-4 transition cursor-pointer hover:shadow-md group"
+              title="المبالغ التي تم صرفها وتسليمها كاش ورقي للزبائن"
+            >
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                <span className="font-semibold text-slate-300">المبالغ المسحوبة (الصرف)</span>
+                <div className="w-7 h-7 rounded-lg bg-rose-500/15 flex items-center justify-center text-rose-400 group-hover:scale-110 transition">
+                  <ArrowDownToLine className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-xl font-extrabold text-rose-400 font-num">
+                {totalWithdrawnAmount.toLocaleString()}
+                <span className="text-xs font-normal text-slate-400 mr-1">ل.س</span>
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-800">
+                {withdrawTxs.length} عملية تسليم كاش ورقي
+              </p>
+            </div>
+
+            {/* Card 5: User Transfers Total Volume */}
+            <div
+              onClick={() => setReportFilter('transfers')}
+              className="bg-slate-950 border border-slate-800 hover:border-blue-500/50 rounded-2xl p-4 transition cursor-pointer hover:shadow-md group"
+              title="إجمالي حركة التداول والدفع بين المستخدمين"
+            >
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                <span className="font-semibold text-slate-300">التحويلات بين المستخدمين</span>
+                <div className="w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center text-blue-400 group-hover:scale-110 transition">
+                  <ArrowRightLeft className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-xl font-extrabold text-blue-400 font-num">
+                {totalTransfersAmount.toLocaleString()}
+                <span className="text-xs font-normal text-slate-400 mr-1">ل.س</span>
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-800">
+                {userTransferTxs.length} تحويل ودفع مشتريات
+              </p>
+            </div>
+
+            {/* Card 6: Cash in Drawer & Vault */}
+            <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4">
+              <div className="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                <span className="font-semibold text-slate-300">الكاش الفعلي في الدرج</span>
+                <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center text-amber-400">
+                  <Banknote className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-xl font-extrabold text-white font-num">
+                {state.adminVault.cashInDrawer.toLocaleString()}
+                <span className="text-xs font-normal text-slate-400 mr-1">ل.س</span>
+              </p>
+              <p className="text-[11px] text-slate-400 mt-1.5 pt-1.5 border-t border-slate-800 truncate" title="رصيد الخزينة الرقمي المتاح">
+                الخزينة: {state.adminVault.digitalVaultBalance.toLocaleString()} ل.س
+              </p>
             </div>
           </div>
 
@@ -2445,6 +2499,7 @@ export const AdminPortal: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
 
       {/* Change Password Modal */}
       <ChangePasswordModal
@@ -2467,10 +2522,7 @@ export const AdminPortal: React.FC = () => {
           {/* 1. تزويد رصيد (شحن) */}
           <button
             type="button"
-            onClick={() => {
-              setActiveTab('charge');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onClick={() => handleTabChange('charge')}
             className={`flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer ${
               activeTab === 'charge'
                 ? 'text-emerald-300 font-black scale-105'
@@ -2495,10 +2547,7 @@ export const AdminPortal: React.FC = () => {
           {/* 2. صرف كاش (سحب) */}
           <button
             type="button"
-            onClick={() => {
-              setActiveTab('withdraw');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onClick={() => handleTabChange('withdraw')}
             className={`flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer ${
               activeTab === 'withdraw'
                 ? 'text-amber-300 font-black scale-105'
@@ -2523,10 +2572,7 @@ export const AdminPortal: React.FC = () => {
           {/* 3. المشتركون */}
           <button
             type="button"
-            onClick={() => {
-              setActiveTab('new_user');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onClick={() => handleTabChange('lookup')}
             className={`flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer relative ${
               activeTab === 'new_user' || activeTab === 'lookup'
                 ? 'text-cyan-300 font-black scale-105'
@@ -2554,10 +2600,7 @@ export const AdminPortal: React.FC = () => {
           {/* 4. التقارير */}
           <button
             type="button"
-            onClick={() => {
-              setActiveTab('reports');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onClick={() => handleTabChange('reports')}
             className={`flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer relative ${
               activeTab === 'reports'
                 ? 'text-indigo-300 font-black scale-105'
@@ -2587,10 +2630,7 @@ export const AdminPortal: React.FC = () => {
           {/* 5. المقر والإدارة */}
           <button
             type="button"
-            onClick={() => {
-              setActiveTab('edit_profile');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onClick={() => handleTabChange('edit_profile')}
             className={`flex flex-col items-center justify-center py-1 rounded-2xl transition-all cursor-pointer ${
               activeTab === 'edit_profile'
                 ? 'text-amber-300 font-black scale-105'

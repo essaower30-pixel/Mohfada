@@ -41,24 +41,42 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
       <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
         {/* Brand / Logo */}
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-md shadow-emerald-500/20 shrink-0">
+          <div
+            className={`w-10 h-10 rounded-2xl p-0.5 shadow-md shrink-0 ${
+              isAdmin
+                ? 'bg-gradient-to-tr from-amber-500 to-yellow-400 shadow-amber-500/20'
+                : 'bg-gradient-to-tr from-emerald-500 to-teal-400 shadow-emerald-500/20'
+            }`}
+          >
             <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-              <Wallet className="w-5 h-5 text-emerald-400" />
+              {isAdmin ? (
+                <Building className="w-5 h-5 text-amber-400" />
+              ) : (
+                <Wallet className="w-5 h-5 text-emerald-400" />
+              )}
             </div>
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <h1 className="text-base font-bold text-white truncate">كاش الحي</h1>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
-                بديل محفظة الجيب
+              <h1 className="text-base font-bold text-white truncate">
+                {isAdmin ? 'صندوق كاش الحي' : 'كاش الحي'}
+              </h1>
+              <span
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${
+                  isAdmin
+                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                    : 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                }`}
+              >
+                {isAdmin ? 'لوحة الإدارة والصندوق' : 'بديل محفظة الجيب'}
               </span>
-              <span className="hidden md:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium whitespace-nowrap">
+              <span className="hidden md:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 font-medium whitespace-nowrap">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>Firebase سحابي</span>
+                <span>سحابي</span>
               </span>
             </div>
             <p className="text-[10px] text-slate-400 truncate">
-              {isAdmin ? 'حساب المدير المعتمد (تزويد الرصيد والكاش)' : 'المحفظة الرقمية للتداول المحلي'}
+              {isAdmin ? 'إدارة تزويد الرصيد وصرف الكاش بالحي' : 'المحفظة الرقمية للتداول المحلي'}
             </p>
           </div>
         </div>

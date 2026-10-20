@@ -7,11 +7,14 @@ import {
   KeyRound,
   ShieldCheck,
   Smartphone,
+  Share2,
+  QrCode,
 } from 'lucide-react';
 import { useCommunityWallet } from '../services/walletState';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { AdminProfileModal } from './AdminProfileModal';
+import { ShareAppModal } from './ShareAppModal';
 
 interface TopNavProps {
   onOpenLogin: () => void;
@@ -23,6 +26,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showAdminProfile, setShowAdminProfile] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Admin features are ONLY visible to the single designated manager user
   const isAdmin = currentUser.role === 'admin';
@@ -104,6 +108,17 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
               <span>تثبيت التطبيق</span>
             </button>
           )}
+
+          {/* Share App QR Button */}
+          <button
+            type="button"
+            onClick={() => setShowShareModal(true)}
+            className="py-1.5 px-2.5 sm:px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+            title="مشاركة رابط وباركود التطبيق العام"
+          >
+            <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">باركود التطبيق</span>
+          </button>
 
           {/* User Profile Pill */}
           <div className="relative">
@@ -204,6 +219,19 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
                   </>
                 )}
 
+                {/* Share App QR Button in Dropdown */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    setShowShareModal(true);
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <QrCode className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>مشاركة باركود ورابط التطبيق للعامة</span>
+                </button>
+
                 {/* Change Password / PIN */}
                 <button
                   type="button"
@@ -254,6 +282,12 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
       <AdminProfileModal
         isOpen={showAdminProfile}
         onClose={() => setShowAdminProfile(false)}
+      />
+
+      {/* Public Share App Modal (Prevents 403 Forbidden errors) */}
+      <ShareAppModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
       />
     </header>
   );

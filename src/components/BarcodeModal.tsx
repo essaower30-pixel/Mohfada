@@ -19,10 +19,13 @@ import { useCommunityWallet } from '../services/walletState';
 
 interface BarcodeModalProps {
   isOpen: boolean;
-  initialTab?: 'scan' | 'show';
+  initialTab?: 'scan' | 'show' | 'app_url';
   onClose: () => void;
   onSuccess: (code: string) => void;
 }
+
+const PUBLIC_APP_URL =
+  'https://ais-pre-n6niorgs4l5qof6qdhjb2p-105836077369.europe-west2.run.app';
 
 export const BarcodeModal: React.FC<BarcodeModalProps> = ({
   isOpen,
@@ -32,7 +35,7 @@ export const BarcodeModal: React.FC<BarcodeModalProps> = ({
 }) => {
   const { state, currentUser, transferBalance } = useCommunityWallet();
 
-  const [tab, setTab] = useState<'scan' | 'show'>(initialTab);
+  const [tab, setTab] = useState<'scan' | 'show' | 'app_url'>(initialTab);
 
   // Scan state
   const [selectedMerchantId, setSelectedMerchantId] = useState(
@@ -48,9 +51,24 @@ export const BarcodeModal: React.FC<BarcodeModalProps> = ({
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [copiedAcc, setCopiedAcc] = useState(false);
 
+  // App Link QR state
+  const [appQrDataUrl, setAppQrDataUrl] = useState('');
+  const [copiedAppLink, setCopiedAppLink] = useState(false);
+
   useEffect(() => {
     setTab(initialTab);
   }, [initialTab]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    QRCode.toDataURL(PUBLIC_APP_URL, {
+      width: 280,
+      margin: 1.5,
+      color: { dark: '#022c22', light: '#ffffff' },
+    })
+      .then((url) => setAppQrDataUrl(url))
+      .catch((err) => console.error(err));
+  }, [isOpen]);
 
   // Generate QR code for receiving
   useEffect(() => {
@@ -146,21 +164,21 @@ export const BarcodeModal: React.FC<BarcodeModalProps> = ({
         </div>
 
         {/* Tab switch */}
-        <div className="p-5 pb-0">
-          <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1 rounded-2xl border border-slate-800 text-xs">
+        <div className="p-4 pb-0">
+          <div className="grid grid-cols-3 gap-1.5 bg-slate-950 p-1 rounded-2xl border border-slate-800 text-[11px]">
             <button
               onClick={() => {
                 setTab('scan');
                 setErrorMsg('');
               }}
-              className={`py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-2 transition ${
+              className={`py-2 px-1.5 rounded-xl font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
                 tab === 'scan'
                   ? 'bg-emerald-500 text-slate-950 shadow'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Camera className="w-3.5 h-3.5" />
-              <span>دفع (مسح باركود المتجر)</span>
+              <Camera className="w-3 h-3 shrink-0" />
+              <span className="truncate">دفع (مسح)</span>
             </button>
 
             <button
@@ -168,14 +186,29 @@ export const BarcodeModal: React.FC<BarcodeModalProps> = ({
                 setTab('show');
                 setErrorMsg('');
               }}
-              className={`py-2 px-3 rounded-xl font-bold flex items-center justify-center gap-2 transition ${
+              className={`py-2 px-1.5 rounded-xl font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
                 tab === 'show'
                   ? 'bg-teal-500 text-slate-950 shadow'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              <QrCode className="w-3.5 h-3.5" />
-              <span>استلام (عرض كودي)</span>
+              <QrCode className="w-3 h-3 shrink-0" />
+              <span className="truncate">استلام (كودي)</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setTab('app_url');
+                setErrorMsg('');
+              }}
+              className={`py-2 px-1.5 rounded-xl font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
+                tab === 'app_url'
+                  ? 'bg-cyan-500 text-slate-950 shadow'
+                  : 'text-cyan-400 hover:text-cyan-300'
+              }`}
+            >
+              <Share2 className="w-3 h-3 shrink-0" />
+              <span className="truncate">رابط التطبيق</span>
             </button>
           </div>
         </div>
@@ -322,7 +355,7 @@ export const BarcodeModal: React.FC<BarcodeModalProps> = ({
                 <span>تأكيد خصم الرصيد والدفع فوراً</span>
               </button>
             </form>
-          ) : (
+          ) : tab === 'show' ? (
             /* Tab 2: Show QR Code */
             <div className="space-y-4 text-center">
               <div>
@@ -373,6 +406,55 @@ export const BarcodeModal: React.FC<BarcodeModalProps> = ({
                 >
                   {copiedAcc ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{copiedAcc ? 'تم النسخ' : 'نسخ رقم الحساب'}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Tab 3: Public App URL & QR Code (Works for all users without 403) */
+            <div className="space-y-4 text-center">
+              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-200 text-xs text-right space-y-1">
+                <p className="font-bold text-amber-300">
+                  حل مشكلة عدم فتح الرابط (403 Forbidden):
+                </p>
+                <p className="text-[11px] text-slate-300">
+                  هذا الباركود مبرمج على الرابط العام المباشر. اطلب من المشترك مسحه بكاميرا هاتفه ليفتح التطبيق فوراً بدون الحاجة لحساب جوجل.
+                </p>
+              </div>
+
+              <div className="bg-slate-950 border border-cyan-500/30 rounded-3xl p-4 relative overflow-hidden shadow-xl">
+                <div className="w-52 h-52 bg-white p-2.5 rounded-2xl mx-auto shadow-xl flex items-center justify-center border-2 border-cyan-500/40">
+                  {appQrDataUrl ? (
+                    <img src={appQrDataUrl} alt="App Link QR" className="w-full h-full object-contain" />
+                  ) : (
+                    <QrCode className="w-10 h-10 animate-spin text-cyan-500" />
+                  )}
+                </div>
+
+                <div className="mt-3">
+                  <p className="font-bold text-sm text-white">
+                    باركود الدخول لتطبيق كاش الحي
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    امسح بالكاميرا لفتح المحفظة على أي جهاز
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between gap-2 text-right">
+                <span className="text-[11px] font-mono text-cyan-300 truncate select-all dir-ltr text-left">
+                  {PUBLIC_APP_URL}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(PUBLIC_APP_URL);
+                    setCopiedAppLink(true);
+                    setTimeout(() => setCopiedAppLink(false), 2000);
+                  }}
+                  className="shrink-0 px-2.5 py-1.5 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold transition flex items-center gap-1"
+                >
+                  {copiedAppLink ? <Check className="w-3.5 h-3.5 text-cyan-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedAppLink ? 'تم النسخ' : 'نسخ'}</span>
                 </button>
               </div>
             </div>

@@ -27,12 +27,14 @@ import {
   Smartphone,
   MapPin,
   PhoneCall,
+  Share2,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
 import { useCommunityWallet } from '../services/walletState';
 import { LocalTransaction, SavedContact } from '../types/wallet';
 import { AdminProfileModal } from './AdminProfileModal';
+import { ShareAppModal } from './ShareAppModal';
 
 
 interface UserWalletViewProps {
@@ -63,6 +65,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showAddContactModal, setShowAddContactModal] = useState(false);
   const [showAdminProfile, setShowAdminProfile] = useState(false);
+  const [showShareAppModal, setShowShareAppModal] = useState(false);
 
   // Pay form states
   const [payIdentifier, setPayIdentifier] = useState('');
@@ -392,6 +395,17 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                 <span>باركود حسابي السريع</span>
               </button>
             </div>
+
+            {/* Share App QR Shortcut Button */}
+            <button
+              type="button"
+              onClick={() => setShowShareAppModal(true)}
+              className="w-full py-2 px-3 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
+              title="مشاركة باركود فتح التطبيق لأي مستخدم جديد"
+            >
+              <Share2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span>مشاركة باركود ورابط التطبيق للعامة (فتح فوري)</span>
+            </button>
           </div>
         </div>
       )}
@@ -1206,6 +1220,12 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
           onClose={() => setShowAdminProfile(false)}
         />
       )}
+
+      {/* Share App QR Modal */}
+      <ShareAppModal
+        isOpen={showShareAppModal}
+        onClose={() => setShowShareAppModal(false)}
+      />
     </div>
   );
 };

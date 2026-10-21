@@ -42,6 +42,7 @@ import {
   Download,
   Share2,
   ExternalLink,
+  LogOut,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
@@ -68,6 +69,7 @@ export const AdminPortal: React.FC = () => {
     registerNewUser,
     setTransferFeeRate,
     setView,
+    logout,
   } = useCommunityWallet();
 
   const { isInstallable, triggerInstall } = usePWAInstall();
@@ -466,6 +468,16 @@ export const AdminPortal: React.FC = () => {
           >
             <QrCode className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">باركود التطبيق</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="py-1.5 px-2.5 rounded-xl border border-rose-500/30 bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 text-[11px] font-bold flex items-center gap-1 transition cursor-pointer"
+            title="تسجيل الخروج من لوحة الإدارة"
+          >
+            <LogOut className="w-3.5 h-3.5 text-rose-400" />
+            <span className="hidden sm:inline">خروج</span>
           </button>
         </div>
       </div>

@@ -9,6 +9,7 @@ import {
   Smartphone,
   Share2,
   QrCode,
+  UserPlus,
 } from 'lucide-react';
 import { useCommunityWallet } from '../services/walletState';
 import { usePWAInstall } from '../hooks/usePWAInstall';
@@ -21,7 +22,7 @@ interface TopNavProps {
 }
 
 export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
-  const { currentUser, setView, state } = useCommunityWallet();
+  const { currentUser, setView, state, logout } = useCommunityWallet();
   const { isInstallable, triggerInstall } = usePWAInstall();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -29,11 +30,11 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
   const [showShareModal, setShowShareModal] = useState(false);
 
   // Admin features are ONLY visible to the single designated manager user
-  const isAdmin = currentUser.role === 'admin';
+  const isAdmin = currentUser?.role === 'admin';
 
   const handleLogout = () => {
     setShowProfileMenu(false);
-    onOpenLogin();
+    logout();
   };
 
   return (
@@ -231,6 +232,19 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
                   <span>تغيير كلمة المرور / رمز الدخول</span>
                 </button>
 
+                {/* Switch User / Add Account */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    onOpenLogin();
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <UserPlus className="w-3.5 h-3.5 text-teal-400" />
+                  <span>تبديل الحساب أو تسجيل مستخدم آخر</span>
+                </button>
+
                 {/* Logout Button in Dropdown */}
                 <button
                   type="button"
@@ -247,7 +261,7 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
           {/* Dedicated Direct Logout Icon in the Navbar */}
           <button
             type="button"
-            onClick={onOpenLogin}
+            onClick={handleLogout}
             className="p-2 sm:px-3 sm:py-2 rounded-2xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 hover:text-rose-200 text-xs font-bold transition flex items-center gap-1.5 shadow-sm shrink-0 cursor-pointer"
             title="تسجيل الخروج"
             aria-label="تسجيل الخروج"

@@ -34,7 +34,7 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  if (!isOpen) return null;
+  if (!isOpen || !currentUser) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

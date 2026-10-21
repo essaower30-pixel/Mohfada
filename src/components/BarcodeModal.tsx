@@ -72,7 +72,7 @@ export const BarcodeModal: React.FC<BarcodeModalProps> = ({
 
   // Generate QR code for receiving
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen || !currentUser) return;
 
     const payload = JSON.stringify({
       protocol: 'pocket_cash',
@@ -94,7 +94,7 @@ export const BarcodeModal: React.FC<BarcodeModalProps> = ({
       .catch((err) => console.error(err));
   }, [isOpen, qrAmount, currentUser]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !currentUser) return null;
 
   const targetMerchant = state.users.find((u) => u.id === selectedMerchantId);
 

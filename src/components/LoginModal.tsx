@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
@@ -20,31 +20,35 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCommunityWallet } from '../services/walletState';
+import { formatPhoneForWhatsApp, openWhatsApp, WhatsAppActionButtons } from '../utils/whatsapp';
 
-interface LoginModalProps {
+export interface LoginModalProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose?: () => void;
+  isStandalone?: boolean;
+  initialTab?: 'login' | 'register';
 }
 
-function formatPhoneForWhatsApp(rawPhone: string): string {
-  let digits = rawPhone.replace(/[^0-9]/g, '');
-  if (digits.startsWith('00')) {
-    digits = digits.slice(2);
-  }
-  // Standard Syrian mobile: 09xxxxxxxx (10 digits) -> 9639xxxxxxxx
-  if (digits.startsWith('09') && digits.length === 10) {
-    digits = '963' + digits.slice(1);
-  } else if (digits.startsWith('9') && digits.length === 9) {
-    digits = '963' + digits;
-  }
-  return digits;
-}
-
-export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
+export const LoginModal: React.FC<LoginModalProps> = ({
+  isOpen,
+  onClose,
+  isStandalone = false,
+  initialTab = 'register',
+}) => {
   const { state, switchUser, registerNewUser } = useCommunityWallet();
 
-  // Active Tab: Login vs Register
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+  // Active Tab: Login vs Register (Defaults to register for new users!)
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>(initialTab);
+
+  // Sync activeTab when initialTab or isOpen changes
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+    setLoginError('');
+    setRegError('');
+    setRegSuccess('');
+  }, [initialTab, isOpen]);
 
   // Login form state
   const [loginIdentifier, setLoginIdentifier] = useState('');
@@ -59,11 +63,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
   const [whatsappSentInfo, setWhatsappSentInfo] = useState<{
     name: string;
     phone: string;
-    url: string;
+    message: string;
     pin: string;
   } | null>(null);
 
-  // Register form state
+  // Register form state (Completely empty for fresh new user experience!)
   const [regName, setRegName] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regRole, setRegRole] = useState<'resident' | 'merchant'>('resident');
@@ -114,23 +118,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
       `—\n` +
       `*إدارة محفظة كاش الحي*`;
 
-    const waUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(
-      whatsappMsg
-    )}`;
-
     setWhatsappSentInfo({
       name: found.shopName || found.name,
       phone: found.phone,
-      url: waUrl,
+      message: whatsappMsg,
       pin: pin,
     });
 
-    // Auto-open WhatsApp link
-    const a = document.createElement('a');
-    a.href = waUrl;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    a.click();
+    // Auto-open standard WhatsApp
+    openWhatsApp({
+      phone: found.phone,
+      text: whatsappMsg,
+      isBusiness: false,
+    });
   };
 
   const handleLoginSubmit = (e: React.FormEvent) => {
@@ -191,7 +191,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     setWhatsappSentInfo(null);
     switchUser(found.id);
     confetti({ particleCount: 50, spread: 60 });
-    onClose();
+    if (onClose) onClose();
   };
 
   const handleRegisterSubmit = (e: React.FormEvent) => {
@@ -241,79 +241,87 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
     confetti({ particleCount: 80, spread: 70 });
 
     setTimeout(() => {
-      onClose();
-    }, 800);
+      if (onClose) onClose();
+    }, 600);
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-[99999] overflow-y-auto bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
-      <div className="w-full max-w-md bg-slate-900 border-2 border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-200 relative z-[100000]">
-        
-        {/* Modal Top Header */}
-        <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800 bg-slate-950/60">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-md shadow-emerald-500/20 shrink-0">
-              <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
-                <Wallet className="w-5 h-5 text-emerald-400" />
-              </div>
-            </div>
-            <div>
-              <h3 className="font-bold text-base sm:text-lg text-white">
-                كاش الحي • محفظة الجيب
-              </h3>
-              <p className="text-xs text-slate-400">
-                تسجيل الدخول أو الاشتراك لتبادل الكاش محلياً
-              </p>
+  const modalBody = (
+    <div
+      className={`w-full max-w-md bg-slate-900 border-2 border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 relative ${
+        isStandalone ? 'mx-auto my-auto' : 'my-auto z-[100000]'
+      }`}
+    >
+      {/* Modal Top Header */}
+      <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-800 bg-slate-950/60">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-md shadow-emerald-500/20 shrink-0">
+            <div className="w-full h-full bg-slate-950 rounded-[14px] flex items-center justify-center">
+              <Wallet className="w-5 h-5 text-emerald-400" />
             </div>
           </div>
+          <div>
+            <h3 className="font-bold text-base sm:text-lg text-white">
+              كاش الحي • محفظة الجيب
+            </h3>
+            <p className="text-xs text-slate-400">
+              {isStandalone
+                ? 'أنشئ حسابك الجديد أو سجّل دخولك للتداول المالي المباشر'
+                : 'تسجيل الدخول أو الاشتراك لتبادل الكاش محلياً'}
+            </p>
+          </div>
+        </div>
 
+        {/* Close Button: ONLY visible when logged-in user is switching accounts */}
+        {!isStandalone && onClose && (
           <button
+            type="button"
             onClick={onClose}
             className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
             aria-label="إغلاق"
           >
             <X className="w-5 h-5" />
           </button>
-        </div>
+        )}
+      </div>
 
-        {/* Tab Switcher: Login vs Register */}
-        <div className="p-4 sm:p-5 pb-0">
-          <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border-2 border-slate-800">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('login');
-                setLoginError('');
-                setRegError('');
-              }}
-              className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
-                activeTab === 'login'
-                  ? 'bg-emerald-500 text-slate-950 shadow-md font-extrabold'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-900'
-              }`}
-            >
-              <LogIn className="w-4 h-4" />
-              <span>تسجيل الدخول</span>
-            </button>
+      {/* Tab Switcher: Register vs Login */}
+      <div className="p-4 sm:p-5 pb-0">
+        <div className="grid grid-cols-2 gap-2 bg-slate-950 p-1.5 rounded-2xl border-2 border-slate-800">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('register');
+              setLoginError('');
+              setRegError('');
+            }}
+            className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+              activeTab === 'register'
+                ? 'bg-emerald-500 text-slate-950 shadow-md font-extrabold'
+                : 'text-slate-300 hover:text-white hover:bg-slate-900'
+            }`}
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>تسجيل جديد</span>
+          </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('register');
-                setLoginError('');
-                setRegError('');
-              }}
-              className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
-                activeTab === 'register'
-                  ? 'bg-teal-500 text-slate-950 shadow-md font-extrabold'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-900'
-              }`}
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>تسجيل مستخدم جديد</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab('login');
+              setLoginError('');
+              setRegError('');
+            }}
+            className={`py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition cursor-pointer ${
+              activeTab === 'login'
+                ? 'bg-teal-500 text-slate-950 shadow-md font-extrabold'
+                : 'text-slate-300 hover:text-white hover:bg-slate-900'
+            }`}
+          >
+            <LogIn className="w-4 h-4" />
+            <span>تسجيل الدخول</span>
+          </button>
         </div>
+      </div>
 
         {/* Tab 1: Login Form */}
         {activeTab === 'login' ? (
@@ -426,15 +434,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
                     تم تجهيز رسالة استعادة كلمة المرور رسمياً باسم <strong className="text-emerald-300">محفظة كاش الحي</strong> لحساب المشترك ({whatsappSentInfo.name}) على رقم الواتساب ({whatsappSentInfo.phone}).
                   </p>
 
-                  <a
-                    href={whatsappSentInfo.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs sm:text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/30 transition cursor-pointer"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    <span>فتح واتساب لإرسال واستلام كلمة السر</span>
-                  </a>
+                  <div className="space-y-2 pt-1">
+                    <p className="text-[11px] text-slate-300 font-bold mb-1">
+                      اختر تطبيق الواتساب لإرسال واستلام كلمة السر:
+                    </p>
+                    <WhatsAppActionButtons
+                      phone={whatsappSentInfo.phone}
+                      text={whatsappSentInfo.message}
+                      regularLabel="واتساب العادي"
+                      businessLabel="واتساب الأعمال"
+                      size="md"
+                      className="w-full"
+                    />
+                  </div>
 
                   <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400">
                     <span>تم فتح الرابط تلقائياً</span>
@@ -625,8 +637,20 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose }) => {
             </form>
           </div>
         )}
+    </div>
+  );
 
+  if (isStandalone) {
+    return (
+      <div className="min-h-screen py-6 sm:py-12 px-3 sm:px-4 flex flex-col items-center justify-center">
+        {modalBody}
       </div>
+    );
+  }
+
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] overflow-y-auto bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
+      {modalBody}
     </div>,
     document.body
   );

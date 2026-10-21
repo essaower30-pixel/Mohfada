@@ -56,7 +56,10 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
     addSavedContact,
     removeSavedContact,
     setView,
+    logout,
   } = useCommunityWallet();
+
+  if (!currentUser) return null;
 
   const isAdmin = currentUser.role === 'admin';
 
@@ -320,7 +323,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
 
                 <button
                   type="button"
-                  onClick={onOpenLogin}
+                  onClick={() => logout()}
                   className="py-1 px-2.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-[11px] font-bold transition flex items-center gap-1 cursor-pointer"
                   title="تسجيل الخروج من الحساب"
                 >

@@ -13,11 +13,12 @@ import {
   INITIAL_TRANSACTIONS,
 } from '../data/mockData';
 
-const STORAGE_KEY = 'pocket_cash_community_wallet_v7';
+const STORAGE_KEY = 'pocket_cash_community_wallet_v8';
+const LEGACY_STORAGE_KEY = 'pocket_cash_community_wallet_v7';
 
 function getInitialState(): LocalWalletState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       // Ensure admin has username: 'admin' and address if not present
@@ -43,7 +44,11 @@ function getInitialState(): LocalWalletState {
           return u;
         });
       }
-      const curUser = parsed.users?.find((u: CommunityUser) => u.id === parsed.currentUserId);
+      // CRITICAL: NEVER auto-login as 'usr_ahmad' (عيسى عوير). On new install or legacy mock state, keep currentUserId null!
+      const curUser = (parsed.currentUserId && parsed.currentUserId !== 'usr_ahmad')
+        ? parsed.users?.find((u: CommunityUser) => u.id === parsed.currentUserId) || null
+        : null;
+      parsed.currentUserId = curUser ? curUser.id : null;
       parsed.activeView = curUser?.role === 'admin' ? 'admin' : 'wallet';
       parsed.adminVault = {
         ...INITIAL_ADMIN_VAULT,
@@ -67,7 +72,7 @@ function getInitialState(): LocalWalletState {
 
   return {
     users: INITIAL_USERS,
-    currentUserId: 'usr_ahmad', // Default active citizen
+    currentUserId: null, // First-time installation / new user: NO default user! Registration screen appears empty!
     adminVault: INITIAL_ADMIN_VAULT,
     transactions: INITIAL_TRANSACTIONS,
     activeView: 'wallet',
@@ -81,7 +86,9 @@ let currentState: LocalWalletState = getInitialState();
 
 function updateState(updater: (prev: LocalWalletState) => LocalWalletState) {
   currentState = updater(currentState);
-  const activeUser = currentState.users.find((u) => u.id === currentState.currentUserId);
+  const activeUser = currentState.currentUserId
+    ? currentState.users.find((u) => u.id === currentState.currentUserId)
+    : null;
   if (activeUser?.role !== 'admin' && currentState.activeView === 'admin') {
     currentState.activeView = 'wallet';
   }
@@ -109,8 +116,9 @@ export function useCommunityWallet() {
     };
   }, []);
 
-  const currentUser =
-    state.users.find((u) => u.id === state.currentUserId) || state.users[1] || state.users[0];
+  const currentUser: CommunityUser | null = state.currentUserId
+    ? state.users.find((u) => u.id === state.currentUserId) || null
+    : null;
 
   const adminUser = state.users.find((u) => u.role === 'admin') || state.users[0];
 
@@ -123,8 +131,16 @@ export function useCommunityWallet() {
     }));
   };
 
+  const logout = () => {
+    updateState((prev) => ({
+      ...prev,
+      currentUserId: null,
+      activeView: 'wallet',
+    }));
+  };
+
   const setView = (view: 'wallet' | 'admin') => {
-    if (view === 'admin' && currentUser.role !== 'admin') {
+    if (view === 'admin' && currentUser?.role !== 'admin') {
       return;
     }
     updateState((prev) => ({
@@ -225,6 +241,7 @@ export function useCommunityWallet() {
 
   // Add saved quick-pay contact to currentUser
   const addSavedContact = (contact: Omit<SavedContact, 'id' | 'savedAt'>) => {
+    if (!currentUser) return;
     const newContact: SavedContact = {
       ...contact,
       id: `cnt_${Date.now()}`,
@@ -248,6 +265,7 @@ export function useCommunityWallet() {
 
   // Remove saved quick-pay contact
   const removeSavedContact = (contactId: string) => {
+    if (!currentUser) return;
     updateState((prev) => ({
       ...prev,
       users: prev.users.map((u) => {
@@ -270,6 +288,10 @@ export function useCommunityWallet() {
     isQrScan?: boolean;
     saveToQuickPay?: boolean;
   }): { success: boolean; error?: string; tx?: LocalTransaction } => {
+    if (!currentUser) {
+      return { success: false, error: 'يجب تسجيل الدخول أولاً للقيام بعمليات الدفع' };
+    }
+
     if (params.amount <= 0) {
       return { success: false, error: 'المبلغ يجب أن يكون أكبر من صفر' };
     }
@@ -576,6 +598,7 @@ export function useCommunityWallet() {
     currentUser,
     adminUser,
     switchUser,
+    logout,
     setView,
     transferBalance,
     addSavedContact,

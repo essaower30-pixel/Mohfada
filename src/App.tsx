@@ -29,6 +29,19 @@ export default function App() {
     setIsBarcodeOpen(true);
   };
 
+  // If no user is logged in (fresh install / new user / logged out), show standalone empty registration screen
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Cairo',sans-serif]">
+        <LoginModal
+          isOpen={true}
+          isStandalone={true}
+          initialTab="register"
+        />
+      </div>
+    );
+  }
+
   // Admin has no personal wallet - directly opens AdminPortal (Vault & Cash Desk)
   const isAdmin = currentUser.role === 'admin';
 
@@ -59,9 +72,9 @@ export default function App() {
           <div className="flex items-center gap-3 text-slate-400">
             <button
               onClick={() => setIsLoginOpen(true)}
-              className="text-slate-400 hover:text-white transition"
+              className="text-slate-400 hover:text-white transition cursor-pointer"
             >
-              تبديل الحساب أو تسجيل الخروج
+              تبديل الحساب أو تسجيل مستخدم آخر
             </button>
           </div>
         </div>
@@ -77,9 +90,11 @@ export default function App() {
         }}
       />
 
-      {/* Login Modal */}
+      {/* Login / Switch Account Modal */}
       <LoginModal
         isOpen={isLoginOpen}
+        isStandalone={false}
+        initialTab="login"
         onClose={() => setIsLoginOpen(false)}
       />
     </div>

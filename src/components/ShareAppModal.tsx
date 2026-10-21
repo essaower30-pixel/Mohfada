@@ -12,6 +12,7 @@ import {
   Smartphone,
 } from 'lucide-react';
 import QRCode from 'qrcode';
+import { WhatsAppActionButtons } from '../utils/whatsapp';
 
 interface ShareAppModalProps {
   isOpen: boolean;
@@ -174,6 +175,20 @@ export const ShareAppModal: React.FC<ShareAppModalProps> = ({ isOpen, onClose })
               <Download className="w-4 h-4 text-teal-400 shrink-0" />
               <span>تحميل صورة الباركود</span>
             </button>
+          </div>
+
+          {/* Direct WhatsApp & WhatsApp Business Share */}
+          <div className="pt-1">
+            <p className="text-[11px] text-slate-400 font-bold mb-1.5 text-center">
+              إرسال رابط التطبيق مباشرة عبر الواتساب:
+            </p>
+            <WhatsAppActionButtons
+              text={`*محفظة كاش الحي • بديل محفظة الجيب الورقية* 💳\nالمحفظة الرقمية للتداول المالي المحلي المباشر بالحي.\nافتح الرابط للتثبيت والاستخدام المباشر:\n${PUBLIC_APP_URL}`}
+              regularLabel="إرسال عبر واتساب"
+              businessLabel="إرسال عبر واتساب أعمال"
+              size="md"
+              className="w-full"
+            />
           </div>
 
           <a

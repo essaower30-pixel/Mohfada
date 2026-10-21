@@ -57,7 +57,7 @@ export interface LocalTransaction {
 
 export interface LocalWalletState {
   users: CommunityUser[];
-  currentUserId: string;
+  currentUserId: string | null;
   adminVault: AdminVault;
   transactions: LocalTransaction[];
   activeView: 'wallet' | 'admin';

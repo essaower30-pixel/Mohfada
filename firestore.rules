@@ -6,37 +6,33 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    function isBootstrappedAdmin() {
-      return isSignedIn() && request.auth.token.email == 'essaower30@gmail.com';
-    }
-
     function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+      return id is string && id.size() > 0 && id.size() <= 128;
     }
 
-    // Users collection: residents, merchants, and admins
+    // Connection test document
+    match /test/{docId} {
+      allow read, write: if true;
+    }
+
+    // Users collection: residents, merchants, and admins in community
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(userId);
-      allow update: if isSignedIn() && isValidId(userId);
-      allow delete: if isBootstrappedAdmin();
+      allow read: if true;
+      allow create, update: if isValidId(userId);
+      allow delete: if false;
     }
 
-    // Transactions collection: charges, withdrawals, and transfers
+    // Transactions collection: immutable ledger of charges, withdrawals, and transfers
     match /transactions/{txId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(txId);
-      allow update, delete: if isBootstrappedAdmin();
+      allow read: if true;
+      allow create: if isValidId(txId);
+      allow update, delete: if false;
     }
 
     // Admin Vault collection: balances, cash in drawer, fee tracking
     match /admin_vault/{vaultId} {
-      allow read: if isSignedIn();
-      allow write: if isBootstrappedAdmin();
+      allow read: if true;
+      allow write: if isValidId(vaultId);
     }
   }
 }

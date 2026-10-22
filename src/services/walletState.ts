@@ -12,6 +12,16 @@ import {
   INITIAL_ADMIN_VAULT,
   INITIAL_TRANSACTIONS,
 } from '../data/mockData';
+import {
+  startUsersRealtimeSync,
+  startTransactionsRealtimeSync,
+  startVaultRealtimeSync,
+  syncUserToCloud,
+  syncTransactionToCloud,
+  syncVaultToCloud,
+  syncTransferBatchToCloud,
+  syncAdminCashActionToCloud,
+} from './firestoreSync';
 
 const STORAGE_KEY = 'pocket_cash_community_wallet_v8';
 const LEGACY_STORAGE_KEY = 'pocket_cash_community_wallet_v7';
@@ -23,6 +33,13 @@ function getInitialState(): LocalWalletState {
       const parsed = JSON.parse(raw);
       // Ensure admin has username: 'admin' and address if not present
       if (parsed.users) {
+        // Ensure any base community user (such as Om Mohammed 0951854257) is present in users
+        INITIAL_USERS.forEach((initU) => {
+          if (!parsed.users.some((u: CommunityUser) => u.id === initU.id || u.phone === initU.phone)) {
+            parsed.users.push(initU);
+          }
+        });
+
         parsed.users = parsed.users.map((u: CommunityUser) => {
           if (u.id === 'usr_admin') {
             return {
@@ -101,6 +118,69 @@ function updateState(updater: (prev: LocalWalletState) => LocalWalletState) {
   listeners.forEach((fn) => fn(currentState));
 }
 
+// Global Cloud Synchronization across all devices
+let isCloudSyncActive = false;
+function initCloudSync() {
+  if (isCloudSyncActive || typeof window === 'undefined') return;
+  isCloudSyncActive = true;
+
+  // 1. Live Users Realtime Sync
+  startUsersRealtimeSync((cloudUsers) => {
+    updateState((prev) => {
+      const userMap = new Map<string, CommunityUser>();
+      // Keep initial users
+      INITIAL_USERS.forEach((u) => userMap.set(u.id, u));
+      // Add local users
+      prev.users.forEach((u) => userMap.set(u.id, u));
+      // Overwrite with live cloud users
+      cloudUsers.forEach((u) => userMap.set(u.id, u));
+
+      // Upload any locally registered user that does not exist in cloud yet
+      const cloudIds = new Set(cloudUsers.map((u) => u.id));
+      prev.users.forEach((localU) => {
+        if (!cloudIds.has(localU.id) && localU.id.startsWith('usr_')) {
+          syncUserToCloud(localU);
+        }
+      });
+
+      return {
+        ...prev,
+        users: Array.from(userMap.values()),
+      };
+    });
+  });
+
+  // 2. Live Transactions Realtime Sync
+  startTransactionsRealtimeSync((cloudTxs) => {
+    updateState((prev) => {
+      const txMap = new Map<string, LocalTransaction>();
+      prev.transactions.forEach((tx) => txMap.set(tx.id, tx));
+      cloudTxs.forEach((tx) => txMap.set(tx.id, tx));
+      const sorted = Array.from(txMap.values()).sort(
+        (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      return {
+        ...prev,
+        transactions: sorted,
+      };
+    });
+  });
+
+  // 3. Live Vault Realtime Sync
+  startVaultRealtimeSync((cloudVault) => {
+    updateState((prev) => ({
+      ...prev,
+      adminVault: {
+        ...prev.adminVault,
+        ...cloudVault,
+      },
+    }));
+  });
+}
+
+// Start cloud sync immediately
+initCloudSync();
+
 function generateReceiptCode(prefix: string) {
   return `${prefix}-${Math.floor(1000 + Math.random() * 9000)}`;
 }
@@ -166,12 +246,14 @@ export function useCommunityWallet() {
       return { success: false, error: 'كلمة المرور الجديدة يجب أن تكون 3 أحرف أو أرقام على الأقل' };
     }
 
+    const updatedUser = { ...user, pin: params.newPin };
     updateState((prev) => ({
       ...prev,
       users: prev.users.map((u) =>
-        u.id === params.userId ? { ...u, pin: params.newPin } : u
+        u.id === params.userId ? updatedUser : u
       ),
     }));
+    syncUserToCloud(updatedUser);
 
     return { success: true };
   };
@@ -217,24 +299,22 @@ export function useCommunityWallet() {
       }
     }
 
+    const updatedUser: CommunityUser = {
+      ...user,
+      name: params.name !== undefined && params.name.trim() ? params.name.trim() : user.name,
+      phone: params.phone !== undefined && params.phone.trim() ? params.phone.trim() : user.phone,
+      shopName: params.shopName !== undefined ? params.shopName.trim() : user.shopName,
+      address: params.address !== undefined ? params.address.trim() : user.address,
+      username: params.username !== undefined ? params.username.trim() : user.username,
+      avatar: params.avatar !== undefined && params.avatar.trim() ? params.avatar.trim() : user.avatar,
+      pin: params.pin !== undefined && params.pin.trim() ? params.pin.trim() : user.pin,
+    };
+
     updateState((prev) => ({
       ...prev,
-      users: prev.users.map((u) => {
-        if (u.id === params.userId) {
-          return {
-            ...u,
-            name: params.name !== undefined && params.name.trim() ? params.name.trim() : u.name,
-            phone: params.phone !== undefined && params.phone.trim() ? params.phone.trim() : u.phone,
-            shopName: params.shopName !== undefined ? params.shopName.trim() : u.shopName,
-            address: params.address !== undefined ? params.address.trim() : u.address,
-            username: params.username !== undefined ? params.username.trim() : u.username,
-            avatar: params.avatar !== undefined && params.avatar.trim() ? params.avatar.trim() : u.avatar,
-            pin: params.pin !== undefined && params.pin.trim() ? params.pin.trim() : u.pin,
-          };
-        }
-        return u;
-      }),
+      users: prev.users.map((u) => (u.id === params.userId ? updatedUser : u)),
     }));
+    syncUserToCloud(updatedUser);
 
     return { success: true };
   };
@@ -398,6 +478,33 @@ export function useCommunityWallet() {
       };
     });
 
+    // Realtime Atomic Cloud Sync to Firestore
+    const updatedSender: CommunityUser = {
+      ...currentUser,
+      balance: currentUser.balance - totalDeduction,
+    };
+    const updatedRecipient: CommunityUser = {
+      ...recipient,
+      balance: recipient.balance + params.amount,
+    };
+    const updatedAdmin: CommunityUser = {
+      ...adminUser,
+      balance: adminUser.balance + fee,
+    };
+    const updatedVault: AdminVault = {
+      ...state.adminVault,
+      cashInDrawer: state.adminVault.cashInDrawer + fee,
+      totalAdminFeesCollected: (state.adminVault.totalAdminFeesCollected || 0) + fee,
+    };
+
+    syncTransferBatchToCloud({
+      sender: updatedSender,
+      recipient: updatedRecipient,
+      admin: updatedAdmin,
+      adminVault: updatedVault,
+      transaction: newTx,
+    });
+
     return { success: true, tx: newTx };
   };
 
@@ -450,6 +557,22 @@ export function useCommunityWallet() {
       transactions: [newTx, ...prev.transactions],
     }));
 
+    const updatedUser: CommunityUser = {
+      ...targetUser,
+      balance: targetUser.balance + params.amount,
+    };
+    const updatedVault: AdminVault = {
+      ...state.adminVault,
+      digitalVaultBalance: state.adminVault.digitalVaultBalance - params.amount,
+      cashInDrawer: state.adminVault.cashInDrawer + params.amount,
+      totalIssuedToUsers: state.adminVault.totalIssuedToUsers + params.amount,
+    };
+    syncAdminCashActionToCloud({
+      targetUser: updatedUser,
+      adminVault: updatedVault,
+      transaction: newTx,
+    });
+
     return { success: true, tx: newTx };
   };
 
@@ -497,6 +620,22 @@ export function useCommunityWallet() {
       ),
       transactions: [newTx, ...prev.transactions],
     }));
+
+    const updatedUser: CommunityUser = {
+      ...targetUser,
+      balance: targetUser.balance - params.amount,
+    };
+    const updatedVaultWithdraw: AdminVault = {
+      ...state.adminVault,
+      digitalVaultBalance: state.adminVault.digitalVaultBalance + params.amount,
+      cashInDrawer: Math.max(0, state.adminVault.cashInDrawer - params.amount),
+      cashPaidOut: state.adminVault.cashPaidOut + params.amount,
+    };
+    syncAdminCashActionToCloud({
+      targetUser: updatedUser,
+      adminVault: updatedVaultWithdraw,
+      transaction: newTx,
+    });
 
     return { success: true, tx: newTx };
   };
@@ -574,17 +713,32 @@ export function useCommunityWallet() {
       transactions: initialTx ? [initialTx, ...prev.transactions] : prev.transactions,
     }));
 
+    // Realtime Cloud Sync of newly registered user
+    syncUserToCloud(newUser);
+    if (initialTx) {
+      syncTransactionToCloud(initialTx);
+      const updatedVaultReg: AdminVault = {
+        ...state.adminVault,
+        digitalVaultBalance: state.adminVault.digitalVaultBalance - initialAmount,
+        cashInDrawer: state.adminVault.cashInDrawer + initialAmount,
+        totalIssuedToUsers: state.adminVault.totalIssuedToUsers + initialAmount,
+      };
+      syncVaultToCloud(updatedVaultReg);
+    }
+
     return newUser;
   };
 
   const setTransferFeeRate = (rate: number) => {
+    const updatedVault = {
+      ...state.adminVault,
+      transferFeeRate: rate,
+    };
     updateState((prev) => ({
       ...prev,
-      adminVault: {
-        ...prev.adminVault,
-        transferFeeRate: rate,
-      },
+      adminVault: updatedVault,
     }));
+    syncVaultToCloud(updatedVault);
   };
 
   const resetData = () => {

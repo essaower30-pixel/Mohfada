@@ -79,13 +79,15 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
 
   // Live recipient lookup by mobile or account
   const cleanPayId = payIdentifier.replace(/[\s\-\+]/g, '');
-  const matchedRecipient = cleanPayId.length >= 3
+  const cleanTrimmed = payIdentifier.trim().toLowerCase();
+  const matchedRecipient = cleanPayId.length >= 3 || cleanTrimmed.length >= 3
     ? state.users.find(
         (u) =>
           u.id !== currentUser.id &&
           (u.phone.replace(/[\s\-\+]/g, '') === cleanPayId ||
             u.phone.replace(/[\s\-\+]/g, '').replace(/^0/, '') === cleanPayId.replace(/^0/, '') ||
-            u.accountNumber.toLowerCase() === payIdentifier.trim().toLowerCase())
+            u.accountNumber.toLowerCase() === cleanTrimmed ||
+            (u.username && u.username.toLowerCase() === cleanTrimmed))
       )
     : undefined;
 

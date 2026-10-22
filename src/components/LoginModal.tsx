@@ -20,7 +20,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCommunityWallet } from '../services/walletState';
-import { formatPhoneForWhatsApp, openWhatsApp, WhatsAppActionButtons } from '../utils/whatsapp';
+import { formatPhoneForWhatsApp, WhatsAppActionButtons } from '../utils/whatsapp';
 
 export interface LoginModalProps {
   isOpen: boolean;
@@ -123,13 +123,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       phone: found.phone,
       message: whatsappMsg,
       pin: pin,
-    });
-
-    // Auto-open standard WhatsApp
-    openWhatsApp({
-      phone: found.phone,
-      text: whatsappMsg,
-      isBusiness: false,
     });
   };
 
@@ -449,7 +442,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                   </div>
 
                   <div className="flex items-center justify-between pt-1 text-[11px] text-slate-400">
-                    <span>تم فتح الرابط تلقائياً</span>
+                    <span className="text-emerald-400/90 font-medium">اختر التطبيق المناسب أعلاه لفتح الرسالة</span>
                     <button
                       type="button"
                       onClick={() => {
@@ -642,7 +635,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
 
   if (isStandalone) {
     return (
-      <div className="min-h-screen py-6 sm:py-12 px-3 sm:px-4 flex flex-col items-center justify-center">
+      <div className="w-full py-4 sm:py-8 px-2 sm:px-4 flex flex-col items-center justify-center">
         {modalBody}
       </div>
     );

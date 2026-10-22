@@ -29,15 +29,30 @@ export default function App() {
     setIsBarcodeOpen(true);
   };
 
-  // If no user is logged in (fresh install / new user / logged out), show standalone empty registration screen
+  // If no user is logged in (fresh install / new user / logged out), show standalone empty registration screen with full top navigation
   if (!currentUser) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Cairo',sans-serif]">
-        <LoginModal
-          isOpen={true}
-          isStandalone={true}
-          initialTab="register"
-        />
+        <TopNav onOpenLogin={() => setIsLoginOpen(true)} />
+
+        <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-8 flex flex-col items-center justify-center">
+          <LoginModal
+            isOpen={true}
+            isStandalone={true}
+            initialTab="register"
+          />
+        </main>
+
+        <footer className="border-t border-slate-900 bg-slate-950/80 py-4 text-center text-xs text-slate-500">
+          <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p>
+              محفظة كاش الحي • بديل محفظة الجيب الورقية للتداول المحلي المباشر
+            </p>
+            <p className="text-[11px] text-slate-400">
+              سجّل حسابك الجديد مجاناً أو ادخل برقم هاتفك للبدء فوراً
+            </p>
+          </div>
+        </footer>
       </div>
     );
   }

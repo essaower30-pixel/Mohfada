@@ -108,9 +108,33 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
   // Success toast
   const [toastMsg, setToastMsg] = useState('');
 
-  // User's own transactions
+  // Real-time live incoming balance alert: triggers immediately when another device transfers money!
+  const prevBalanceRef = React.useRef<number>(currentUser.balance);
+  const isFirstMountRef = React.useRef<boolean>(true);
+
+  React.useEffect(() => {
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      prevBalanceRef.current = currentUser.balance;
+      return;
+    }
+
+    if (currentUser.balance > prevBalanceRef.current) {
+      const diff = currentUser.balance - prevBalanceRef.current;
+      confetti({ particleCount: 75, spread: 70 });
+      setToastMsg(`وصلك رصيد إضافي جديد بقيمة +${diff.toLocaleString()} ل.س فوراً!`);
+      setTimeout(() => setToastMsg(''), 6000);
+    }
+    prevBalanceRef.current = currentUser.balance;
+  }, [currentUser.balance]);
+
+  // User's own transactions (matches ID OR phone/name across accounts)
+  const cleanMyPhone = currentUser.phone.replace(/[\s\-\+]/g, '');
   const userTransactions = state.transactions.filter(
-    (tx) => tx.senderId === currentUser.id || tx.recipientId === currentUser.id
+    (tx) =>
+      tx.senderId === currentUser.id ||
+      tx.recipientId === currentUser.id ||
+      (cleanMyPhone && tx.recipientName === (currentUser.shopName || currentUser.name))
   );
 
   const filteredTransactions = userTransactions.filter((tx) => {

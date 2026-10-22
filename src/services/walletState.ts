@@ -21,6 +21,9 @@ import {
   syncVaultToCloud,
   syncTransferBatchToCloud,
   syncAdminCashActionToCloud,
+  fetchAllUsersNow,
+  fetchAllTransactionsNow,
+  fetchVaultNow,
 } from './firestoreSync';
 
 const STORAGE_KEY = 'pocket_cash_community_wallet_v8';
@@ -118,13 +121,36 @@ function updateState(updater: (prev: LocalWalletState) => LocalWalletState) {
   listeners.forEach((fn) => fn(currentState));
 }
 
+// Helper: Ensure duplicate accounts sharing the exact same clean phone number stay synchronized in balance
+function synchronizePhoneBalances(users: CommunityUser[]): CommunityUser[] {
+  const phoneMaxBalance = new Map<string, number>();
+  users.forEach((u) => {
+    const clean = u.phone.replace(/[\s\-\+]/g, '');
+    if (clean) {
+      const cur = phoneMaxBalance.get(clean) ?? 0;
+      if (u.balance > cur) {
+        phoneMaxBalance.set(clean, u.balance);
+      }
+    }
+  });
+
+  return users.map((u) => {
+    const clean = u.phone.replace(/[\s\-\+]/g, '');
+    const maxB = clean ? phoneMaxBalance.get(clean) : undefined;
+    if (maxB !== undefined && maxB > u.balance) {
+      return { ...u, balance: maxB };
+    }
+    return u;
+  });
+}
+
 // Global Cloud Synchronization across all devices
 let isCloudSyncActive = false;
 function initCloudSync() {
   if (isCloudSyncActive || typeof window === 'undefined') return;
   isCloudSyncActive = true;
 
-  // 1. Live Users Realtime Sync
+  // 1. Live Users Realtime Sync via onSnapshot
   startUsersRealtimeSync((cloudUsers) => {
     updateState((prev) => {
       const userMap = new Map<string, CommunityUser>();
@@ -143,9 +169,10 @@ function initCloudSync() {
         }
       });
 
+      const synchronized = synchronizePhoneBalances(Array.from(userMap.values()));
       return {
         ...prev,
-        users: Array.from(userMap.values()),
+        users: synchronized,
       };
     });
   });
@@ -175,6 +202,70 @@ function initCloudSync() {
         ...cloudVault,
       },
     }));
+  });
+
+  // 4. Background Heartbeat Poller (Every 2 seconds) + Focus & Visibility Listeners
+  // Guarantees instant live updates even on aggressive mobile power-saving browsers
+  const pollCloud = async () => {
+    try {
+      const [latestUsers, latestTxs, latestVault] = await Promise.all([
+        fetchAllUsersNow(),
+        fetchAllTransactionsNow(),
+        fetchVaultNow(),
+      ]);
+
+      if (latestUsers.length > 0) {
+        updateState((prev) => {
+          const userMap = new Map<string, CommunityUser>();
+          INITIAL_USERS.forEach((u) => userMap.set(u.id, u));
+          prev.users.forEach((u) => userMap.set(u.id, u));
+          latestUsers.forEach((u) => userMap.set(u.id, u));
+          const synchronized = synchronizePhoneBalances(Array.from(userMap.values()));
+          return {
+            ...prev,
+            users: synchronized,
+          };
+        });
+      }
+
+      if (latestTxs.length > 0) {
+        updateState((prev) => {
+          const txMap = new Map<string, LocalTransaction>();
+          prev.transactions.forEach((tx) => txMap.set(tx.id, tx));
+          latestTxs.forEach((tx) => txMap.set(tx.id, tx));
+          const sorted = Array.from(txMap.values()).sort(
+            (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          );
+          return {
+            ...prev,
+            transactions: sorted,
+          };
+        });
+      }
+
+      if (latestVault) {
+        updateState((prev) => ({
+          ...prev,
+          adminVault: {
+            ...prev.adminVault,
+            ...latestVault,
+          },
+        }));
+      }
+    } catch {
+      // Background poll fail-safe
+    }
+  };
+
+  // Poll every 2 seconds
+  setInterval(pollCloud, 2000);
+
+  // Trigger poll immediately on tab focus or screen unlock
+  window.addEventListener('focus', pollCloud);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      pollCloud();
+    }
   });
 }
 
@@ -434,9 +525,16 @@ export function useCommunityWallet() {
       isQrScan: !!params.isQrScan,
     };
 
+    const recipientCleanPhone = recipient.phone.replace(/[\s\-\+]/g, '');
+    const senderCleanPhone = currentUser.phone.replace(/[\s\-\+]/g, '');
+
     updateState((prev) => {
       let updatedUsers = prev.users.map((u) => {
-        if (u.id === currentUser.id) {
+        const uCleanPhone = u.phone.replace(/[\s\-\+]/g, '');
+        const isSender = u.id === currentUser.id || (senderCleanPhone && uCleanPhone === senderCleanPhone);
+        const isRecipient = u.id === recipient.id || (recipientCleanPhone && uCleanPhone === recipientCleanPhone);
+
+        if (isSender) {
           let contacts = u.savedContacts || [];
           if (
             params.saveToQuickPay &&
@@ -454,9 +552,9 @@ export function useCommunityWallet() {
               },
             ];
           }
-          return { ...u, balance: u.balance - totalDeduction, savedContacts: contacts };
+          return { ...u, balance: Math.max(0, u.balance - totalDeduction), savedContacts: contacts };
         }
-        if (u.id === recipient.id) {
+        if (isRecipient) {
           return { ...u, balance: u.balance + params.amount };
         }
         if (u.role === 'admin') {
@@ -478,10 +576,10 @@ export function useCommunityWallet() {
       };
     });
 
-    // Realtime Atomic Cloud Sync to Firestore
+    // Realtime Atomic Cloud Sync to Firestore across all accounts for sender and recipient
     const updatedSender: CommunityUser = {
       ...currentUser,
-      balance: currentUser.balance - totalDeduction,
+      balance: Math.max(0, currentUser.balance - totalDeduction),
     };
     const updatedRecipient: CommunityUser = {
       ...recipient,
@@ -497,12 +595,22 @@ export function useCommunityWallet() {
       totalAdminFeesCollected: (state.adminVault.totalAdminFeesCollected || 0) + fee,
     };
 
+    const allSenderIds = state.users
+      .filter((u) => u.id === currentUser.id || (senderCleanPhone && u.phone.replace(/[\s\-\+]/g, '') === senderCleanPhone))
+      .map((u) => u.id);
+
+    const allRecipientIds = state.users
+      .filter((u) => u.id === recipient.id || (recipientCleanPhone && u.phone.replace(/[\s\-\+]/g, '') === recipientCleanPhone))
+      .map((u) => u.id);
+
     syncTransferBatchToCloud({
       sender: updatedSender,
       recipient: updatedRecipient,
       admin: updatedAdmin,
       adminVault: updatedVault,
       transaction: newTx,
+      allSenderIds,
+      allRecipientIds,
     });
 
     return { success: true, tx: newTx };
@@ -648,6 +756,30 @@ export function useCommunityWallet() {
     initialCashPaid?: number;
     pin?: string;
   }) => {
+    const cleanPhone = params.phone.replace(/[\s\-\+]/g, '');
+    const cleanPhoneNoZero = cleanPhone.replace(/^0/, '');
+    const existing = state.users.find(
+      (u) =>
+        (cleanPhone && u.phone.replace(/[\s\-\+]/g, '') === cleanPhone) ||
+        (cleanPhoneNoZero && u.phone.replace(/[\s\-\+]/g, '').replace(/^0/, '') === cleanPhoneNoZero)
+    );
+    if (existing) {
+      const updatedExisting: CommunityUser = {
+        ...existing,
+        name: params.name || existing.name,
+        shopName: params.shopName || existing.shopName,
+        pin: params.pin || existing.pin,
+      };
+      updateState((prev) => ({
+        ...prev,
+        users: prev.users.map((u) => (u.id === existing.id ? updatedExisting : u)),
+        currentUserId: existing.id,
+        activeView: 'wallet',
+      }));
+      syncUserToCloud(updatedExisting);
+      return updatedExisting;
+    }
+
     const newId = `usr_${Date.now().toString(36)}`;
     const accNumber =
       params.role === 'merchant'

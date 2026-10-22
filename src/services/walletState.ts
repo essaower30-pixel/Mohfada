@@ -63,6 +63,7 @@ function getInitialState(): LocalWalletState {
           }
           return u;
         });
+        parsed.users = synchronizePhoneData(parsed.users);
       }
       // CRITICAL: NEVER auto-login as 'usr_ahmad' (عيسى عوير). On new install or legacy mock state, keep currentUserId null!
       const curUser = (parsed.currentUserId && parsed.currentUserId !== 'usr_ahmad')
@@ -121,26 +122,57 @@ function updateState(updater: (prev: LocalWalletState) => LocalWalletState) {
   listeners.forEach((fn) => fn(currentState));
 }
 
-// Helper: Ensure duplicate accounts sharing the exact same clean phone number stay synchronized in balance
-function synchronizePhoneBalances(users: CommunityUser[]): CommunityUser[] {
+// Helper: Ensure duplicate accounts sharing the exact same clean phone number stay synchronized in balance & keep real PIN
+function synchronizePhoneData(users: CommunityUser[]): CommunityUser[] {
+  const normalize = (p: string) => (p || '').replace(/[\s\-\+]/g, '').replace(/^0/, '');
   const phoneMaxBalance = new Map<string, number>();
+  const phoneBestPin = new Map<string, string>();
+
   users.forEach((u) => {
-    const clean = u.phone.replace(/[\s\-\+]/g, '');
+    const clean = normalize(u.phone);
     if (clean) {
-      const cur = phoneMaxBalance.get(clean) ?? 0;
-      if (u.balance > cur) {
+      // 1. Balance synchronization: take maximum known balance
+      const curBal = phoneMaxBalance.get(clean) ?? 0;
+      if (u.balance > curBal) {
         phoneMaxBalance.set(clean, u.balance);
+      }
+
+      // 2. PIN synchronization: prefer any custom non-1234 PIN (e.g. 1971, 1979)
+      const existingPin = phoneBestPin.get(clean);
+      if (u.pin && u.pin !== '1234') {
+        phoneBestPin.set(clean, u.pin);
+      } else if (!existingPin && u.pin) {
+        phoneBestPin.set(clean, u.pin);
       }
     }
   });
 
   return users.map((u) => {
-    const clean = u.phone.replace(/[\s\-\+]/g, '');
-    const maxB = clean ? phoneMaxBalance.get(clean) : undefined;
-    if (maxB !== undefined && maxB > u.balance) {
-      return { ...u, balance: maxB };
+    const clean = normalize(u.phone);
+    if (!clean) return u;
+
+    const maxB = phoneMaxBalance.get(clean);
+    const bestPin = phoneBestPin.get(clean);
+
+    let changed = false;
+    let updated = { ...u };
+
+    if (maxB !== undefined && maxB > updated.balance) {
+      updated.balance = maxB;
+      changed = true;
     }
-    return u;
+
+    if (bestPin && updated.pin !== bestPin && bestPin !== '1234') {
+      updated.pin = bestPin;
+      changed = true;
+    }
+
+    // If this record needed to be updated to match the real balance or PIN, update cloud too
+    if (changed && u.id.startsWith('usr_')) {
+      syncUserToCloud(updated);
+    }
+
+    return updated;
   });
 }
 
@@ -169,7 +201,7 @@ function initCloudSync() {
         }
       });
 
-      const synchronized = synchronizePhoneBalances(Array.from(userMap.values()));
+      const synchronized = synchronizePhoneData(Array.from(userMap.values()));
       return {
         ...prev,
         users: synchronized,
@@ -220,7 +252,7 @@ function initCloudSync() {
           INITIAL_USERS.forEach((u) => userMap.set(u.id, u));
           prev.users.forEach((u) => userMap.set(u.id, u));
           latestUsers.forEach((u) => userMap.set(u.id, u));
-          const synchronized = synchronizePhoneBalances(Array.from(userMap.values()));
+          const synchronized = synchronizePhoneData(Array.from(userMap.values()));
           return {
             ...prev,
             users: synchronized,
@@ -337,14 +369,23 @@ export function useCommunityWallet() {
       return { success: false, error: 'كلمة المرور الجديدة يجب أن تكون 3 أحرف أو أرقام على الأقل' };
     }
 
-    const updatedUser = { ...user, pin: params.newPin };
+    const userPhoneClean = (user.phone || '').replace(/[\s\-\+]/g, '').replace(/^0/, '');
+    const updatedUsers = state.users.map((u) => {
+      const uPhoneClean = (u.phone || '').replace(/[\s\-\+]/g, '').replace(/^0/, '');
+      if (u.id === params.userId || (userPhoneClean && uPhoneClean === userPhoneClean)) {
+        const up = { ...u, pin: params.newPin };
+        if (u.id.startsWith('usr_')) {
+          syncUserToCloud(up);
+        }
+        return up;
+      }
+      return u;
+    });
+
     updateState((prev) => ({
       ...prev,
-      users: prev.users.map((u) =>
-        u.id === params.userId ? updatedUser : u
-      ),
+      users: updatedUsers,
     }));
-    syncUserToCloud(updatedUser);
 
     return { success: true };
   };
@@ -651,6 +692,7 @@ export function useCommunityWallet() {
       isQrScan: false,
     };
 
+    const targetCleanPhone = (targetUser.phone || '').replace(/[\s\-\+]/g, '').replace(/^0/, '');
     updateState((prev) => ({
       ...prev,
       adminVault: {
@@ -659,9 +701,11 @@ export function useCommunityWallet() {
         cashInDrawer: prev.adminVault.cashInDrawer + params.amount,
         totalIssuedToUsers: prev.adminVault.totalIssuedToUsers + params.amount,
       },
-      users: prev.users.map((u) =>
-        u.id === targetUser.id ? { ...u, balance: u.balance + params.amount } : u
-      ),
+      users: prev.users.map((u) => {
+        const uCleanPhone = (u.phone || '').replace(/[\s\-\+]/g, '').replace(/^0/, '');
+        const isMatch = u.id === targetUser.id || (targetCleanPhone && uCleanPhone === targetCleanPhone);
+        return isMatch ? { ...u, balance: u.balance + params.amount } : u;
+      }),
       transactions: [newTx, ...prev.transactions],
     }));
 
@@ -680,6 +724,14 @@ export function useCommunityWallet() {
       adminVault: updatedVault,
       transaction: newTx,
     });
+    // Also sync all sister accounts to cloud
+    state.users
+      .filter((u) => u.id !== targetUser.id && targetCleanPhone && (u.phone || '').replace(/[\s\-\+]/g, '').replace(/^0/, '') === targetCleanPhone)
+      .forEach((sister) => {
+        if (sister.id.startsWith('usr_')) {
+          syncUserToCloud({ ...sister, balance: sister.balance + params.amount });
+        }
+      });
 
     return { success: true, tx: newTx };
   };
@@ -715,6 +767,7 @@ export function useCommunityWallet() {
       isQrScan: false,
     };
 
+    const targetCleanPhone = (targetUser.phone || '').replace(/[\s\-\+]/g, '').replace(/^0/, '');
     updateState((prev) => ({
       ...prev,
       adminVault: {
@@ -723,15 +776,17 @@ export function useCommunityWallet() {
         cashInDrawer: Math.max(0, prev.adminVault.cashInDrawer - params.amount),
         cashPaidOut: prev.adminVault.cashPaidOut + params.amount,
       },
-      users: prev.users.map((u) =>
-        u.id === targetUser.id ? { ...u, balance: u.balance - params.amount } : u
-      ),
+      users: prev.users.map((u) => {
+        const uCleanPhone = (u.phone || '').replace(/[\s\-\+]/g, '').replace(/^0/, '');
+        const isMatch = u.id === targetUser.id || (targetCleanPhone && uCleanPhone === targetCleanPhone);
+        return isMatch ? { ...u, balance: Math.max(0, u.balance - params.amount) } : u;
+      }),
       transactions: [newTx, ...prev.transactions],
     }));
 
     const updatedUser: CommunityUser = {
       ...targetUser,
-      balance: targetUser.balance - params.amount,
+      balance: Math.max(0, targetUser.balance - params.amount),
     };
     const updatedVaultWithdraw: AdminVault = {
       ...state.adminVault,
@@ -744,6 +799,14 @@ export function useCommunityWallet() {
       adminVault: updatedVaultWithdraw,
       transaction: newTx,
     });
+    // Also sync all sister accounts to cloud
+    state.users
+      .filter((u) => u.id !== targetUser.id && targetCleanPhone && (u.phone || '').replace(/[\s\-\+]/g, '').replace(/^0/, '') === targetCleanPhone)
+      .forEach((sister) => {
+        if (sister.id.startsWith('usr_')) {
+          syncUserToCloud({ ...sister, balance: Math.max(0, sister.balance - params.amount) });
+        }
+      });
 
     return { success: true, tx: newTx };
   };
@@ -764,11 +827,12 @@ export function useCommunityWallet() {
         (cleanPhoneNoZero && u.phone.replace(/[\s\-\+]/g, '').replace(/^0/, '') === cleanPhoneNoZero)
     );
     if (existing) {
+      const bestPin = (params.pin && params.pin !== '1234') ? params.pin : (existing.pin || params.pin || '1234');
       const updatedExisting: CommunityUser = {
         ...existing,
         name: params.name || existing.name,
         shopName: params.shopName || existing.shopName,
-        pin: params.pin || existing.pin,
+        pin: bestPin,
       };
       updateState((prev) => ({
         ...prev,

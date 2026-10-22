@@ -89,22 +89,33 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
-    const found = state.users.find(
-      (u) =>
-        (u.username && u.username.toLowerCase() === clean) ||
-        u.phone === loginIdentifier.trim() ||
-        u.phone.replace(/\s+/g, '') === loginIdentifier.trim().replace(/\s+/g, '') ||
-        u.accountNumber.toLowerCase() === clean
-    );
+    const cleanDigits = clean.replace(/[\s\-\+]/g, '');
+    const cleanDigitsNoZero = cleanDigits.replace(/^0/, '');
 
-    if (!found) {
+    const matchingUsers = state.users.filter((u) => {
+      const uPhoneClean = (u.phone || '').replace(/[\s\-\+]/g, '');
+      const uPhoneNoZero = uPhoneClean.replace(/^0/, '');
+      return (
+        (u.username && u.username.toLowerCase() === clean) ||
+        u.accountNumber.toLowerCase() === clean ||
+        (cleanDigits && (uPhoneClean === cleanDigits || (cleanDigitsNoZero && uPhoneNoZero === cleanDigitsNoZero)))
+      );
+    });
+
+    if (matchingUsers.length === 0) {
       setLoginError(
         'لم يتم العثور على حساب مسجل برقم الموبايل أو اسم المستخدم هذا. يرجى التأكد من الرقم أو تسجيل حساب جديد.'
       );
       return;
     }
 
-    const pin = found.pin || '1234';
+    // Pick real custom PIN (preferring any PIN that is not '1234' and not empty)
+    const pin =
+      matchingUsers.find((u) => u.pin && u.pin !== '1234')?.pin ||
+      matchingUsers[0].pin ||
+      '1234';
+
+    const found = matchingUsers.find((u) => u.pin === pin) || matchingUsers[0];
     const cleanPhone = formatPhoneForWhatsApp(found.phone);
 
     const whatsappMsg =
@@ -147,42 +158,55 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
-    // Match by username (e.g. admin), phone, or account number
-    const found = state.users.find(
-      (u) =>
-        (u.username && u.username.toLowerCase() === clean) ||
-        u.phone === loginIdentifier.trim() ||
-        u.phone.replace(/\s+/g, '') === loginIdentifier.trim().replace(/\s+/g, '') ||
-        u.accountNumber.toLowerCase() === clean
-    );
+    const cleanDigits = clean.replace(/[\s\-\+]/g, '');
+    const cleanDigitsNoZero = cleanDigits.replace(/^0/, '');
 
-    if (!found) {
+    // Match across all users with this phone, username, or account number
+    const matchingUsers = state.users.filter((u) => {
+      const uPhoneClean = (u.phone || '').replace(/[\s\-\+]/g, '');
+      const uPhoneNoZero = uPhoneClean.replace(/^0/, '');
+      return (
+        (u.username && u.username.toLowerCase() === clean) ||
+        u.accountNumber.toLowerCase() === clean ||
+        (cleanDigits && (uPhoneClean === cleanDigits || (cleanDigitsNoZero && uPhoneNoZero === cleanDigitsNoZero)))
+      );
+    });
+
+    if (matchingUsers.length === 0) {
       setLoginError('الحساب غير مسجل. يرجى التأكد من البيانات أو تسجيل حساب جديد.');
       return;
     }
 
-    if (found.pin && found.pin !== loginPassword) {
-      const newAttempts = failedAttempts + 1;
-      setFailedAttempts(newAttempts);
-      const remaining = 3 - newAttempts;
-      if (remaining > 0) {
-        setLoginError(
-          `كلمة المرور غير صحيحة! متبقي لديك ${
-            remaining === 1 ? 'محاولة واحدة فقط' : `${remaining} محاولات`
-          }.`
-        );
-      } else {
-        setLoginError(
-          'تم استنفاد 3 محاولات خاطئة! تم قفل الدخول مؤقتاً لحماية الحساب. اضغط على "هل نسيت كلمة السر؟" لإرسال كلمة السر إلى الواتس اب باسم المحفظة.'
-        );
+    // Match if password matches ANY account of this user
+    const matchedUser = matchingUsers.find((u) => u.pin === loginPassword);
+    if (!matchedUser) {
+      // Check if user has no pin configured and entered 1234
+      const emptyPinMatch = matchingUsers.find((u) => !u.pin && loginPassword === '1234');
+      if (!emptyPinMatch) {
+        const newAttempts = failedAttempts + 1;
+        setFailedAttempts(newAttempts);
+        const remaining = 3 - newAttempts;
+        if (remaining > 0) {
+          setLoginError(
+            `كلمة المرور غير صحيحة! متبقي لديك ${
+              remaining === 1 ? 'محاولة واحدة فقط' : `${remaining} محاولات`
+            }.`
+          );
+        } else {
+          setLoginError(
+            'تم استنفاد 3 محاولات خاطئة! تم قفل الدخول مؤقتاً لحماية الحساب. اضغط على "هل نسيت كلمة السر؟" لإرسال كلمة السر إلى الواتس اب باسم المحفظة.'
+          );
+        }
+        return;
       }
-      return;
     }
+
+    const activeUser = matchedUser || matchingUsers[0];
 
     // Switch user and save session
     setFailedAttempts(0);
     setWhatsappSentInfo(null);
-    switchUser(found.id);
+    switchUser(activeUser.id);
     confetti({ particleCount: 50, spread: 60 });
     if (onClose) onClose();
   };
@@ -205,14 +229,22 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       return;
     }
 
+    const cleanDigits = cleanPhone.replace(/[\s\-\+]/g, '');
+    const cleanDigitsNoZero = cleanDigits.replace(/^0/, '');
+
     // Check if phone already registered
-    const existing = state.users.find(
-      (u) =>
-        u.phone === cleanPhone ||
-        u.phone.replace(/\s+/g, '') === cleanPhone.replace(/\s+/g, '')
-    );
+    const existing = state.users.find((u) => {
+      const uPhoneClean = (u.phone || '').replace(/[\s\-\+]/g, '');
+      const uPhoneNoZero = uPhoneClean.replace(/^0/, '');
+      return cleanDigits && (uPhoneClean === cleanDigits || (cleanDigitsNoZero && uPhoneNoZero === cleanDigitsNoZero));
+    });
+
     if (existing) {
-      setRegError('هذا الرقم مسجل مسبقاً! يمكنك تسجيل الدخول به مباشرة.');
+      setRegError(
+        `هذا الرقم مسجل مسبقاً باسم (${existing.shopName || existing.name})! تم تحويلك لشاشة الدخول، يمكنك تسجيل الدخول بكلمة المرور.`
+      );
+      setLoginIdentifier(cleanPhone);
+      setActiveTab('login');
       return;
     }
 

@@ -128,18 +128,26 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
     prevBalanceRef.current = currentUser.balance;
   }, [currentUser.balance]);
 
-  // User's own transactions (matches ID OR phone/name across accounts)
-  const cleanMyPhone = currentUser.phone.replace(/[\s\-\+]/g, '');
+  // User's own transactions (matches ID OR phone across sister accounts)
+  const myCleanPhone = currentUser.phone.replace(/[\s\-\+]/g, '').replace(/^0/, '');
+  const myAccountIds = React.useMemo(() => {
+    return new Set(
+      state.users
+        .filter((u) => u.id === currentUser.id || (myCleanPhone && u.phone.replace(/[\s\-\+]/g, '').replace(/^0/, '') === myCleanPhone))
+        .map((u) => u.id)
+    );
+  }, [state.users, currentUser.id, myCleanPhone]);
+
   const userTransactions = state.transactions.filter(
     (tx) =>
-      tx.senderId === currentUser.id ||
-      tx.recipientId === currentUser.id ||
-      (cleanMyPhone && tx.recipientName === (currentUser.shopName || currentUser.name))
+      myAccountIds.has(tx.senderId) ||
+      myAccountIds.has(tx.recipientId) ||
+      (myCleanPhone && tx.recipientName === (currentUser.shopName || currentUser.name))
   );
 
   const filteredTransactions = userTransactions.filter((tx) => {
-    if (txFilter === 'outgoing') return tx.senderId === currentUser.id;
-    if (txFilter === 'incoming') return tx.recipientId === currentUser.id;
+    if (txFilter === 'outgoing') return myAccountIds.has(tx.senderId);
+    if (txFilter === 'incoming') return myAccountIds.has(tx.recipientId);
     return true;
   });
 
@@ -670,7 +678,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
           ) : (
             <div className="space-y-2">
               {filteredTransactions.map((tx) => {
-                const isIncome = tx.recipientId === currentUser.id;
+                const isIncome = myAccountIds.has(tx.recipientId);
                 return (
                   <div
                     key={tx.id}

@@ -24,6 +24,10 @@ import {
   Sparkles,
   Smartphone,
   Share2,
+  UserCog,
+  KeyRound,
+  Shield,
+  ScanLine,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
@@ -36,12 +40,16 @@ interface UserWalletViewProps {
   onOpenBarcodeScan: () => void;
   onOpenBarcodeShow: () => void;
   onOpenLogin: () => void;
+  onOpenEditProfile: () => void;
+  onOpenChangePassword: () => void;
 }
 
 export const UserWalletView: React.FC<UserWalletViewProps> = ({
   onOpenBarcodeScan,
   onOpenBarcodeShow,
   onOpenLogin,
+  onOpenEditProfile,
+  onOpenChangePassword,
 }) => {
   const {
     state,
@@ -239,7 +247,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 py-4 sm:py-6 space-y-5 pb-20 sm:pb-8">
       {/* Toast Alert */}
       {toastMsg && (
         <div className="p-4 rounded-2xl bg-emerald-500 text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-between gap-3 shadow-lg shadow-emerald-500/20 animate-in slide-in-from-top-4">
@@ -268,7 +276,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                 className="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-500/50 shadow-md shrink-0"
               />
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                     {currentUser.role === 'admin'
                       ? 'أمين الصندوق والمعتمد'
@@ -279,6 +287,14 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                   <span className="text-xs text-slate-400 font-mono font-bold">
                     {currentUser.accountNumber}
                   </span>
+                  <button
+                    type="button"
+                    onClick={onOpenEditProfile}
+                    className="py-0.5 px-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold inline-flex items-center gap-1 transition cursor-pointer"
+                  >
+                    <UserCog className="w-3 h-3" />
+                    <span>تعديل</span>
+                  </button>
                 </div>
                 <h2 className="text-lg sm:text-xl font-black text-white mt-0.5">
                   {currentUser.shopName || currentUser.name}
@@ -344,184 +360,6 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Quick Pay Saved Contacts */}
-      <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-xl">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <Bookmark className="w-5 h-5 text-teal-400" />
-            <div>
-              <h3 className="font-bold text-sm sm:text-base text-white">جهات الدفع السريع المحفوظة لديك</h3>
-              <p className="text-[11px] text-slate-400">
-                ادفع لمحلاتك أو أصدقائك بنقرة واحدة دون إدخال الحساب
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={() => setShowAddContactModal(true)}
-            className="text-xs font-bold px-3 py-1.5 rounded-xl bg-teal-500/15 hover:bg-teal-500/25 text-teal-300 border border-teal-500/30 transition flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>إضافة جهة</span>
-          </button>
-        </div>
-
-        {(!currentUser.savedContacts || currentUser.savedContacts.length === 0) ? (
-          <div className="py-6 px-4 text-center rounded-2xl bg-slate-950/60 border border-dashed border-slate-800">
-            <Bookmark className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-60" />
-            <p className="text-xs font-bold text-slate-300">لم تحتفظ بأي جهات للدفع السريع بعد</p>
-            <p className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
-              عند الدفع لأي متجر أو مستخدم، يمكنك تفعيل خيار الحفظ للوصول السريع مستقبلاً.
-            </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {currentUser.savedContacts.map((c) => (
-              <div
-                key={c.id}
-                className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 hover:border-teal-500/40 flex items-center justify-between gap-2.5 transition group"
-              >
-                <div
-                  onClick={() => handleQuickPayContact(c)}
-                  className="flex items-center gap-2.5 min-w-0 cursor-pointer flex-1"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-teal-400 shrink-0">
-                    <Store className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-100 group-hover:text-teal-400 truncate">
-                      {c.shopName || c.name}
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-num font-mono truncate">
-                      {c.accountNumber} • {c.phone}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => handleQuickPayContact(c)}
-                    className="px-3 py-1.5 rounded-xl bg-teal-500/20 hover:bg-teal-500 text-teal-300 hover:text-slate-950 text-xs font-bold transition cursor-pointer"
-                  >
-                    دفع
-                  </button>
-                  <button
-                    onClick={() => removeSavedContact(c.id)}
-                    className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                    title="حذف من المحفوظات"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Transactions History */}
-      <div className="bg-slate-900 border-2 border-slate-800 rounded-3xl p-5 sm:p-6 space-y-4 shadow-xl">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-cyan-400" />
-            <div>
-              <h3 className="font-bold text-sm sm:text-base text-white">سجل العمليات والحركات الشخصية</h3>
-              <p className="text-[11px] text-slate-400">
-                جميع حركات الدفع والاستلام والشحن الخاصة بحسابك
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs self-start sm:self-center">
-            <button
-              onClick={() => setTxFilter('all')}
-              className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
-                txFilter === 'all' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              الكل ({userTransactions.length})
-            </button>
-            <button
-              onClick={() => setTxFilter('outgoing')}
-              className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
-                txFilter === 'outgoing' ? 'bg-rose-500/20 text-rose-300' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              دفع صادر
-            </button>
-            <button
-              onClick={() => setTxFilter('incoming')}
-              className={`px-3 py-1 rounded-lg font-bold transition cursor-pointer ${
-                txFilter === 'incoming' ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              استلام وارد
-            </button>
-          </div>
-        </div>
-
-        {filteredTransactions.length === 0 ? (
-          <div className="text-center py-8 text-slate-400 text-xs">
-            لا توجد حركات تطابق التحديد حالياً.
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {filteredTransactions.map((tx) => {
-              const isIncome = myAccountIds.has(tx.recipientId);
-              return (
-                <div
-                  key={tx.id}
-                  className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 flex items-center justify-between gap-3 text-xs"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        isIncome
-                          ? 'bg-emerald-500/15 text-emerald-400'
-                          : 'bg-slate-800 text-slate-300'
-                      }`}
-                    >
-                      {isIncome ? (
-                        <ArrowDownLeft className="w-4 h-4 stroke-[2.5]" />
-                      ) : (
-                        <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-bold text-slate-100 truncate">
-                          {isIncome ? `استلام من: ${tx.senderName}` : `دفع إلى: ${tx.recipientName}`}
-                        </p>
-                        {tx.isQrScan && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-500/15 text-teal-300 border border-teal-500/30">
-                            باركود
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5">{tx.note}</p>
-                    </div>
-                  </div>
-
-                  <div className="text-left shrink-0">
-                    <p
-                      className={`font-black font-num text-sm sm:text-base ${
-                        isIncome ? 'text-emerald-400' : 'text-slate-100'
-                      }`}
-                    >
-                      {isIncome ? '+' : '-'}
-                      {tx.amount.toLocaleString()} ل.س
-                    </p>
-                    <span className="text-[10px] text-slate-500 font-num font-mono block">
-                      {tx.receiptCode}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {/* Pay Modal */}
@@ -744,90 +582,6 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                 )}
               </button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Contact Modal */}
-      {showAddContactModal && (
-        <div className="fixed inset-0 z-[99999] overflow-y-auto bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
-          <div className="w-full max-w-sm bg-slate-900 border-2 border-slate-700/80 rounded-3xl shadow-2xl p-5 space-y-4 my-auto animate-in fade-in zoom-in-95 duration-200 relative z-[100000]">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <div className="flex items-center gap-2">
-                <Bookmark className="w-5 h-5 text-teal-400" />
-                <h3 className="font-bold text-sm text-white">إضافة جهة دفع سريع جديدة</h3>
-              </div>
-              <button
-                onClick={() => setShowAddContactModal(false)}
-                className="p-1 text-slate-400 hover:text-white cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddContactSubmit} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  الاسم أو اسم المتجر *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newContactName}
-                  onChange={(e) => setNewContactName(e.target.value)}
-                  placeholder="مثال: بقالية النور"
-                  className="w-full bg-slate-950 text-white text-xs rounded-xl px-3 py-2 border border-slate-800 focus:border-teal-500 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  رقم الموبايل
-                </label>
-                <input
-                  type="tel"
-                  value={newContactPhone}
-                  onChange={(e) => setNewContactPhone(e.target.value)}
-                  placeholder="09xxxxxxxx"
-                  className="w-full bg-slate-950 text-white font-num text-xs rounded-xl px-3 py-2 border border-slate-800 focus:border-teal-500 outline-none text-left"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  رقم الحساب المالي (إن وجد)
-                </label>
-                <input
-                  type="text"
-                  value={newContactAccount}
-                  onChange={(e) => setNewContactAccount(e.target.value)}
-                  placeholder="مثال: SHOP-201"
-                  className="w-full bg-slate-950 text-white font-mono text-xs rounded-xl px-3 py-2 border border-slate-800 focus:border-teal-500 outline-none text-left"
-                />
-              </div>
-
-              {contactError && (
-                <div className="p-2 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
-                  {contactError}
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowAddContactModal(false)}
-                  className="py-2 px-3 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold"
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-2 px-3 rounded-xl bg-teal-500 text-slate-950 font-bold text-xs"
-                >
-                  حفظ الجهة
-                </button>
-              </div>
-            </form>
           </div>
         </div>
       )}

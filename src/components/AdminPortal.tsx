@@ -30,6 +30,8 @@ import {
   Copy,
   Check,
   Share2,
+  KeyRound,
+  Shield,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
@@ -38,7 +40,17 @@ import { CommunityUser } from '../types/wallet';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { AdminProfileModal } from './AdminProfileModal';
 
-export const AdminPortal: React.FC = () => {
+import { BottomNavTab } from './BottomNav';
+
+interface AdminPortalProps {
+  onOpenEditProfile?: () => void;
+  onNavigateTab?: (tab: BottomNavTab) => void;
+}
+
+export const AdminPortal: React.FC<AdminPortalProps> = ({
+  onOpenEditProfile,
+  onNavigateTab,
+}) => {
   const {
     state,
     adminUser,
@@ -229,7 +241,7 @@ export const AdminPortal: React.FC = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+    <div className="max-w-5xl mx-auto px-4 py-4 sm:py-6 space-y-5 pb-20 sm:pb-8">
       {/* Top Admin Summary Banner */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-950/40 via-slate-900 to-slate-950 border-2 border-amber-500/40 shadow-2xl p-6 sm:p-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
@@ -253,12 +265,13 @@ export const AdminPortal: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={() => setShowEditProfile(true)}
-              className="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
+              onClick={() => (onOpenEditProfile ? onOpenEditProfile() : setShowEditProfile(true))}
+              className="py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-black transition cursor-pointer flex items-center gap-1.5 shadow-sm"
             >
-              تعديل بيانات الإدارة
+              <Shield className="w-3.5 h-3.5" />
+              <span>تعديل بيانات الإدارة</span>
             </button>
             <button
               onClick={() => setView('wallet')}

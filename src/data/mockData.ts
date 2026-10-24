@@ -67,7 +67,7 @@ export const INITIAL_USERS: CommunityUser[] = [
     id: 'usr_sara',
     name: 'سارة الحلبي (زبون / مقيمة)',
     phone: '0966444888',
-    accountNumber: 'POCKET-103',
+    accountNumber: 'POCKET-104',
     role: 'resident',
     balance: 180000,
     pin: '1234',

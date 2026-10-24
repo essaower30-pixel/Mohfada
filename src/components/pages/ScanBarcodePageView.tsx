@@ -119,39 +119,44 @@ export const ScanBarcodePageView: React.FC<ScanBarcodePageViewProps> = ({ onBack
 
   const handleQrDataDecoded = (rawData: string) => {
     setScanError('');
-    let detectedAccountOrPhone = '';
+    let targetPhone = '';
+    let targetAccount = '';
     let embeddedAmount: number | undefined = undefined;
 
     try {
       const parsed = JSON.parse(rawData);
-      if (parsed.account) detectedAccountOrPhone = parsed.account;
-      else if (parsed.phone) detectedAccountOrPhone = parsed.phone;
+      if (parsed.phone) targetPhone = parsed.phone;
+      if (parsed.account || parsed.accountNumber) targetAccount = parsed.account || parsed.accountNumber;
       if (parsed.amount && typeof parsed.amount === 'number') {
         embeddedAmount = parsed.amount;
       }
     } catch {
-      detectedAccountOrPhone = rawData.trim();
+      targetAccount = rawData.trim();
     }
 
-    if (!detectedAccountOrPhone) {
-      setScanError('لم يتم العثور على رمز حساب صالح في الباركود');
-      return;
-    }
+    const cleanPhone = (targetPhone || (!rawData.trim().startsWith('{') ? rawData : '')).replace(/[\s\-\+]/g, '');
+    const cleanPhoneNoZero = cleanPhone.replace(/^0/, '');
+    const cleanAcc = (targetAccount || '').trim().toLowerCase();
 
-    const cleanInput = detectedAccountOrPhone.replace(/[\s\-\+]/g, '');
-    const found = state.users.find((u) => {
+    // Priority 1: Match by unique mobile phone number
+    let found = cleanPhone.length >= 7 ? state.users.find((u) => {
       if (u.id === currentUser?.id) return false;
-      const uPhone = u.phone.replace(/[\s\-\+]/g, '');
+      const uPhone = (u.phone || '').replace(/[\s\-\+]/g, '');
       const uPhoneNoZero = uPhone.replace(/^0/, '');
-      const cleanNoZero = cleanInput.replace(/^0/, '');
-      if (uPhone === cleanInput || uPhoneNoZero === cleanNoZero) return true;
-      if (u.accountNumber.toLowerCase() === detectedAccountOrPhone.toLowerCase()) return true;
-      return false;
-    });
+      return uPhone === cleanPhone || (cleanPhoneNoZero && uPhoneNoZero === cleanPhoneNoZero);
+    }) : undefined;
+
+    // Priority 2: Match by unique account number
+    if (!found && cleanAcc) {
+      found = state.users.find((u) => {
+        if (u.id === currentUser?.id) return false;
+        return (u.accountNumber || '').toLowerCase() === cleanAcc;
+      });
+    }
 
     if (!found) {
       setScanError(
-        `تم التعرف على الرمز (${detectedAccountOrPhone}) لكن لم يتم العثور على حساب مسجل بهذا الرقم في النظام.`
+        `تم التعرف على الرمز ولكن لم يتم العثور على حساب مسجل يطابق هذا الباركود في النظام.`
       );
       return;
     }

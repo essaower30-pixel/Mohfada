@@ -276,20 +276,29 @@ export const BarcodeModal: React.FC<BarcodeModalProps> = ({
     }
 
     const cleanAcc = (targetAccount || '').trim().toLowerCase();
-    const cleanPhone = (targetPhone || rawData || '').replace(/[\s\-\+]/g, '');
+    const cleanPhone = (targetPhone || (!rawData.trim().startsWith('{') ? rawData : '')).replace(/[\s\-\+]/g, '');
     const cleanPhoneNoZero = cleanPhone.replace(/^0/, '');
 
-    const found = state.users.find((u) => {
-      const uClean = (u.accountNumber || '').toLowerCase();
+    // Priority 1: Match by unique mobile phone number
+    let found = cleanPhone.length >= 7 ? state.users.find((u) => {
       const uPhone = (u.phone || '').replace(/[\s\-\+]/g, '');
       const uPhoneNoZero = uPhone.replace(/^0/, '');
+      return uPhone === cleanPhone || (cleanPhoneNoZero && uPhoneNoZero === cleanPhoneNoZero);
+    }) : undefined;
 
-      if (cleanAcc && uClean === cleanAcc) return true;
-      if (cleanPhone && (uPhone === cleanPhone || (cleanPhoneNoZero && uPhoneNoZero === cleanPhoneNoZero))) return true;
-      if (u.id === rawData.trim()) return true;
-      if (u.username && u.username.toLowerCase() === rawData.trim().toLowerCase()) return true;
-      return false;
-    });
+    // Priority 2: Match by unique account number
+    if (!found && cleanAcc) {
+      found = state.users.find((u) => (u.accountNumber || '').toLowerCase() === cleanAcc);
+    }
+
+    // Priority 3: Match by user ID or username
+    if (!found) {
+      found = state.users.find((u) => {
+        if (u.id === rawData.trim()) return true;
+        if (u.username && u.username.toLowerCase() === rawData.trim().toLowerCase()) return true;
+        return false;
+      });
+    }
 
     if (!found) {
       setScanError(`تمت قراءة الرمز (${rawData.slice(0, 30)}) بنجاح، ولكن لم يتم العثور على حساب مسجل يطابق هذا الباركود!`);

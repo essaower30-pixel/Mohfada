@@ -47,7 +47,7 @@ export default function App() {
         {currentUser ? (
           <>
             {activeTab === 'home' && (
-              state.activeView === 'admin' ? (
+              currentUser.role === 'admin' ? (
                 <AdminPortal
                   onOpenEditProfile={() => setActiveTab('profile')}
                   onNavigateTab={(tab) => setActiveTab(tab)}

@@ -325,7 +325,9 @@ export function useCommunityWallet() {
   };
 
   const setView = (view: 'wallet' | 'admin') => {
-    if (view === 'admin' && currentUser?.role !== 'admin') {
+    if (currentUser?.role === 'admin') {
+      // Admin desk is strictly for vault/cash management
+      updateState((prev) => ({ ...prev, activeView: 'admin' }));
       return;
     }
     updateState((prev) => ({
@@ -515,16 +517,22 @@ export function useCommunityWallet() {
     const cleanDigits = cleanIdent.replace(/[\s\-\+]/g, '');
     const cleanDigitsNoZero = cleanDigits.replace(/^0/, '');
 
-    const recipient = state.users.find((u) => {
-      if (u.id === cleanIdent) return true;
-      if (u.accountNumber.toLowerCase() === cleanIdent.toLowerCase()) return true;
-      if (u.phone === cleanIdent) return true;
+    // Priority 1: Match by mobile phone number first (if phone digits provided)
+    let recipient = cleanDigits.length >= 7 ? state.users.find((u) => {
       const userDigits = u.phone.replace(/[\s\-\+]/g, '');
       const userDigitsNoZero = userDigits.replace(/^0/, '');
-      if (cleanDigits && (userDigits === cleanDigits || userDigitsNoZero === cleanDigitsNoZero)) return true;
-      if (u.username && u.username.toLowerCase() === cleanIdent.toLowerCase()) return true;
-      return false;
-    });
+      return userDigits === cleanDigits || (cleanDigitsNoZero && userDigitsNoZero === cleanDigitsNoZero);
+    }) : undefined;
+
+    // Priority 2: Match by exact account number, ID, or username
+    if (!recipient) {
+      recipient = state.users.find((u) => {
+        if (u.id === cleanIdent) return true;
+        if (u.accountNumber.toLowerCase() === cleanIdent.toLowerCase()) return true;
+        if (u.username && u.username.toLowerCase() === cleanIdent.toLowerCase()) return true;
+        return false;
+      });
+    }
 
     if (!recipient) {
       return { success: false, error: 'المستلم غير مسجل في المحفظة، تأكد من رقم الحساب أو الموبايل' };

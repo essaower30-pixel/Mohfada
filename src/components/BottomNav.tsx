@@ -32,8 +32,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({ activeTab, onTabChange }) 
   }> = [
     {
       id: 'home',
-      label: isAdmin && state.activeView === 'admin' ? 'الصندوق' : 'الرئيسية',
-      icon: isAdmin && state.activeView === 'admin' ? Building : Wallet,
+      label: isAdmin ? 'لوحة الصندوق' : 'الرئيسية',
+      icon: isAdmin ? Building : Wallet,
     },
     {
       id: 'quick_pay',

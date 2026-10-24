@@ -273,12 +273,6 @@ export const AdminPortal: React.FC<AdminPortalProps> = ({
               <Shield className="w-3.5 h-3.5" />
               <span>تعديل بيانات الإدارة</span>
             </button>
-            <button
-              onClick={() => setView('wallet')}
-              className="py-2 px-3.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold transition cursor-pointer shadow-md"
-            >
-              عرض محفظتي الشخصية
-            </button>
           </div>
         </div>
 

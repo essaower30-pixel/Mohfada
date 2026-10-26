@@ -1,8 +1,38 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Default Deny Catch-All
     match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    // Connection test document
+    match /test/{docId} {
       allow read, write: if true;
+    }
+
+    // Users collection: residents, merchants, and admins in community
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if isValidId(userId);
+      allow delete: if false;
+    }
+
+    // Transactions collection: immutable ledger of charges, withdrawals, and transfers
+    match /transactions/{txId} {
+      allow read: if true;
+      allow create: if isValidId(txId);
+      allow update, delete: if false;
+    }
+
+    // Admin Vault collection: balances, cash in drawer, fee tracking
+    match /admin_vault/{vaultId} {
+      allow read: if true;
+      allow write: if isValidId(vaultId);
     }
   }
 }

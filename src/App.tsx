@@ -1,122 +1,124 @@
 import React, { useState, useEffect } from 'react';
-import { useCommunityWallet } from './services/walletState';
-import { testFirebaseConnection } from './services/firebase';
 import { TopNav } from './components/TopNav';
-import { BottomNav, BottomNavTab } from './components/BottomNav';
 import { UserWalletView } from './components/UserWalletView';
 import { AdminPortal } from './components/AdminPortal';
-import { LoginModal } from './components/LoginModal';
 import { BarcodeModal } from './components/BarcodeModal';
-import { QuickPayPageView } from './components/pages/QuickPayPageView';
-import { HistoryPageView } from './components/pages/HistoryPageView';
-import { ProfilePageView } from './components/pages/ProfilePageView';
-import { ChangePasswordPageView } from './components/pages/ChangePasswordPageView';
-import { ShareAppPageView } from './components/pages/ShareAppPageView';
+import { LoginModal } from './components/LoginModal';
+import { useCommunityWallet } from './services/walletState';
+import { testFirebaseConnection } from './services/firebase';
 
 export default function App() {
   const { state, currentUser } = useCommunityWallet();
-
-  const [activeTab, setActiveTab] = useState<BottomNavTab>('home');
-  const [showLoginModal, setShowLoginModal] = useState(false);
-
-  // Barcode modal for quick home card action buttons
-  const [showBarcodeModal, setShowBarcodeModal] = useState(false);
-  const [barcodeInitialMode, setBarcodeInitialMode] = useState<'scan' | 'show'>('scan');
 
   useEffect(() => {
     testFirebaseConnection();
   }, []);
 
+  // Modal controls
+  const [isBarcodeOpen, setIsBarcodeOpen] = useState(false);
+  const [barcodeTab, setBarcodeTab] = useState<'scan' | 'show'>('scan');
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+
   const handleOpenBarcodeScan = () => {
-    setBarcodeInitialMode('scan');
-    setShowBarcodeModal(true);
+    setBarcodeTab('scan');
+    setIsBarcodeOpen(true);
   };
 
   const handleOpenBarcodeShow = () => {
-    setBarcodeInitialMode('show');
-    setShowBarcodeModal(true);
+    setBarcodeTab('show');
+    setIsBarcodeOpen(true);
   };
 
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-white">
-      {/* Clean Top Header (No duplicate toolbar) */}
-      <TopNav onOpenLogin={() => setShowLoginModal(true)} />
+  // If no user is logged in (fresh install / new user / logged out), show standalone modal
+  // If user previously logged in/out, default to 'login' tab so they can immediately type password; otherwise 'register'
+  const hasRememberedUser =
+    typeof window !== 'undefined' &&
+    (!!localStorage.getItem('pocket_cash_last_user_phone') ||
+     !!localStorage.getItem('pocket_cash_last_user_id') ||
+     !!localStorage.getItem('pocket_cash_last_user_name'));
 
-      {/* Main Container - with bottom padding to ensure content is never hidden behind the persistent bottom bar */}
-      <main className="flex-1 pb-24 sm:pb-20">
-        {currentUser ? (
-          <>
-            {activeTab === 'home' && (
-              currentUser.role === 'admin' ? (
-                <AdminPortal
-                  onOpenEditProfile={() => setActiveTab('profile')}
-                  onNavigateTab={(tab) => setActiveTab(tab)}
-                />
-              ) : (
-                <UserWalletView
-                  onOpenBarcodeScan={handleOpenBarcodeScan}
-                  onOpenBarcodeShow={handleOpenBarcodeShow}
-                  onOpenLogin={() => setShowLoginModal(true)}
-                  onOpenEditProfile={() => setActiveTab('profile')}
-                  onOpenChangePassword={() => setActiveTab('password')}
-                />
-              )
-            )}
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Cairo',sans-serif]">
+        <TopNav onOpenLogin={() => setIsLoginOpen(true)} />
 
-            {activeTab === 'quick_pay' && (
-              <QuickPayPageView onBackToHome={() => setActiveTab('home')} />
-            )}
-
-            {activeTab === 'history' && (
-              <HistoryPageView onBackToHome={() => setActiveTab('home')} />
-            )}
-
-            {activeTab === 'profile' && (
-              <ProfilePageView onBackToHome={() => setActiveTab('home')} />
-            )}
-
-            {activeTab === 'password' && (
-              <ChangePasswordPageView onBackToHome={() => setActiveTab('home')} />
-            )}
-
-            {activeTab === 'share' && (
-              <ShareAppPageView onBackToHome={() => setActiveTab('home')} />
-            )}
-          </>
-        ) : (
+        <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-8 flex flex-col items-center justify-center">
           <LoginModal
             isOpen={true}
             isStandalone={true}
-            initialTab="login"
+            initialTab={hasRememberedUser ? 'login' : 'register'}
+          />
+        </main>
+
+        <footer className="border-t border-slate-900 bg-slate-950/80 py-4 text-center text-xs text-slate-500">
+          <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+            <p>
+              محفظة كاش الحي • بديل محفظة الجيب الورقية للتداول المحلي المباشر
+            </p>
+            <p className="text-[11px] text-slate-400">
+              سجّل حسابك الجديد مجاناً أو ادخل برقم هاتفك للبدء فوراً
+            </p>
+          </div>
+        </footer>
+      </div>
+    );
+  }
+
+  // Admin has no personal wallet - directly opens AdminPortal (Vault & Cash Desk)
+  const isAdmin = currentUser.role === 'admin';
+
+  return (
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-['Cairo',sans-serif]">
+      {/* Top Navigation */}
+      <TopNav onOpenLogin={() => setIsLoginOpen(true)} />
+
+      {/* Main Container */}
+      <main className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-2.5 sm:py-6 pb-24 sm:pb-8">
+        {isAdmin ? (
+          <AdminPortal />
+        ) : (
+          <UserWalletView
+            onOpenBarcodeScan={handleOpenBarcodeScan}
+            onOpenBarcodeShow={handleOpenBarcodeShow}
+            onOpenLogin={() => setIsLoginOpen(true)}
           />
         )}
       </main>
 
-      {/* Persistent Bottom Toolbar (Visible on ALL pages when logged in) */}
-      {currentUser && (
-        <BottomNav
-          activeTab={activeTab}
-          onTabChange={(tab) => setActiveTab(tab)}
-        />
-      )}
+      {/* Clean Footer (Desktop only to prevent mobile scrolling) */}
+      <footer className="hidden sm:block border-t border-slate-900 bg-slate-950/80 py-5 text-center text-xs text-slate-500">
+        <div className="max-w-5xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <p>
+            محفظة كاش الحي • بديل محفظة الجيب الورقية للتداول المحلي المباشر
+          </p>
+          <div className="flex items-center gap-3 text-slate-400">
+            <button
+              onClick={() => setIsLoginOpen(true)}
+              className="text-slate-400 hover:text-white transition cursor-pointer"
+            >
+              تبديل الحساب أو تسجيل مستخدم آخر
+            </button>
+          </div>
+        </div>
+      </footer>
 
-      {/* Barcode Modal (Camera / Studio QR scanner & My QR) for Home page card buttons */}
-      {showBarcodeModal && (
-        <BarcodeModal
-          isOpen={showBarcodeModal}
-          initialMode={barcodeInitialMode}
-          onClose={() => setShowBarcodeModal(false)}
-        />
-      )}
+      {/* Barcode Payment & Receive Modal */}
+      <BarcodeModal
+        isOpen={isBarcodeOpen}
+        initialTab={barcodeTab}
+        onClose={() => setIsBarcodeOpen(false)}
+        onSuccess={(code) => {
+          // Success handled in modal
+        }}
+      />
 
-      {/* Login Modal for guest access */}
-      {showLoginModal && !currentUser && (
-        <LoginModal
-          isOpen={showLoginModal}
-          onClose={() => setShowLoginModal(false)}
-          initialTab="login"
-        />
-      )}
+      {/* Login / Switch Account Modal */}
+      <LoginModal
+        isOpen={isLoginOpen}
+        isStandalone={false}
+        initialTab="login"
+        onClose={() => setIsLoginOpen(false)}
+      />
     </div>
   );
 }

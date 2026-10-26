@@ -2,9 +2,13 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   X,
+  Lock,
   KeyRound,
+  CheckCircle2,
+  AlertCircle,
   Eye,
   EyeOff,
+  ShieldCheck,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { useCommunityWallet } from '../services/walletState';
@@ -96,9 +100,10 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3.5">
+          {/* Old Password */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="block text-xs font-bold text-slate-200 mb-1">
               كلمة المرور الحالية *
             </label>
             <div className="relative">
@@ -106,84 +111,89 @@ export const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
                 type={showOld ? 'text' : 'password'}
                 required
                 value={oldPassword}
-                onChange={(e) => setOldPassword(e.target.value)}
-                placeholder="أدخل كلمة المرور الحالية"
-                className="w-full bg-slate-950 text-white text-xs rounded-xl pr-3 pl-10 py-2.5 border border-slate-800 focus:border-amber-500 outline-none"
+                onChange={(e) => {
+                  setOldPassword(e.target.value);
+                  setErrorMsg('');
+                }}
+                placeholder="كلمة المرور الحالية"
+                className="w-full bg-slate-950 text-white placeholder-slate-500 text-sm font-bold rounded-2xl px-4 py-2.5 border-2 border-slate-600 focus:border-amber-400 outline-none transition"
               />
               <button
                 type="button"
                 onClick={() => setShowOld(!showOld)}
-                className="absolute left-3 top-2.5 text-slate-500 hover:text-slate-300 cursor-pointer"
+                className="absolute left-3 top-3 text-slate-400 hover:text-white transition cursor-pointer"
               >
                 {showOld ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>
 
+          {/* New Password */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
-              كلمة المرور الجديدة * (3 خانات أو أكثر)
+            <label className="block text-xs font-bold text-slate-200 mb-1">
+              كلمة المرور الجديدة *
             </label>
             <div className="relative">
               <input
                 type={showNew ? 'text' : 'password'}
                 required
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="أدخل كلمة المرور الجديدة"
-                className="w-full bg-slate-950 text-white text-xs rounded-xl pr-3 pl-10 py-2.5 border border-slate-800 focus:border-amber-500 outline-none"
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  setErrorMsg('');
+                }}
+                placeholder="كلمة المرور الجديدة"
+                className="w-full bg-slate-950 text-white placeholder-slate-500 text-sm font-bold rounded-2xl px-4 py-2.5 border-2 border-slate-600 focus:border-emerald-400 outline-none transition"
               />
               <button
                 type="button"
                 onClick={() => setShowNew(!showNew)}
-                className="absolute left-3 top-2.5 text-slate-500 hover:text-slate-300 cursor-pointer"
+                className="absolute left-3 top-3 text-slate-400 hover:text-white transition cursor-pointer"
               >
                 {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
           </div>
 
+          {/* Confirm New Password */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1">
+            <label className="block text-xs font-bold text-slate-200 mb-1">
               تأكيد كلمة المرور الجديدة *
             </label>
             <input
-              type="password"
+              type={showNew ? 'text' : 'password'}
               required
               value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="أعد إدخال كلمة المرور الجديدة"
-              className="w-full bg-slate-950 text-white text-xs rounded-xl px-3 py-2.5 border border-slate-800 focus:border-amber-500 outline-none"
+              onChange={(e) => {
+                setConfirmPassword(e.target.value);
+                setErrorMsg('');
+              }}
+              placeholder="أعد كتابة كلمة المرور الجديدة"
+              className="w-full bg-slate-950 text-white placeholder-slate-500 text-sm font-bold rounded-2xl px-4 py-2.5 border-2 border-slate-600 focus:border-emerald-400 outline-none transition"
             />
           </div>
 
           {errorMsg && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs">
-              {errorMsg}
+            <div className="p-3 rounded-2xl bg-rose-500/15 border-2 border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span>{errorMsg}</span>
             </div>
           )}
 
           {successMsg && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs">
-              {successMsg}
+            <div className="p-3 rounded-2xl bg-emerald-500/15 border-2 border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+              <span>{successMsg}</span>
             </div>
           )}
 
-          <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition cursor-pointer"
-            >
-              إلغاء
-            </button>
-            <button
-              type="submit"
-              className="flex-1 py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition cursor-pointer"
-            >
-              حفظ وتحديث كلمة المرور
-            </button>
-          </div>
+          <button
+            type="submit"
+            className="w-full py-3 rounded-2xl font-bold text-sm bg-gradient-to-r from-amber-400 to-emerald-400 hover:from-amber-300 hover:to-emerald-300 text-slate-950 shadow-lg shadow-amber-500/20 active:scale-[0.99] transition flex items-center justify-center gap-2 cursor-pointer mt-2"
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>حفظ كلمة المرور الجديدة</span>
+          </button>
         </form>
       </div>
     </div>,

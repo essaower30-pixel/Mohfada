@@ -6,14 +6,26 @@ import {
   writeBatch,
   getDocs,
   getDoc,
+  query,
+  orderBy,
+  limit,
 } from 'firebase/firestore';
 import { db } from './firebase';
 import {
   CommunityUser,
   AdminVault,
   LocalTransaction,
+  LocalWalletState,
 } from '../types/wallet';
 
+/**
+ * Real-time synchronization layer between Pocket Cash Community Wallet
+ * and Firestore Cloud Database.
+ * Ensures all neighborhood residents and merchants see live balances,
+ * registered users, and transactions across multiple mobile devices.
+ */
+
+// Active listeners callbacks
 type UsersCallback = (users: CommunityUser[]) => void;
 type TransactionsCallback = (txs: LocalTransaction[]) => void;
 type VaultCallback = (vault: AdminVault) => void;
@@ -22,6 +34,10 @@ let unsubUsers: (() => void) | null = null;
 let unsubTxs: (() => void) | null = null;
 let unsubVault: (() => void) | null = null;
 
+/**
+ * Start listening to all users in real time.
+ * When any user registers or updates balance on any phone, all phones receive the update.
+ */
 export function startUsersRealtimeSync(callback: UsersCallback): () => void {
   if (unsubUsers) unsubUsers();
 
@@ -29,7 +45,9 @@ export function startUsersRealtimeSync(callback: UsersCallback): () => void {
   unsubUsers = onSnapshot(
     usersCol,
     (snapshot) => {
-      if (snapshot.empty) return;
+      if (snapshot.empty) {
+        return;
+      }
       const liveUsers: CommunityUser[] = [];
       snapshot.forEach((d) => {
         const data = d.data() as CommunityUser;
@@ -40,19 +58,24 @@ export function startUsersRealtimeSync(callback: UsersCallback): () => void {
       });
       callback(liveUsers);
     },
-    (err) => console.warn('Users realtime sync notice:', err.message)
+    (err) => {
+      console.warn('Realtime users sync error:', err);
+    }
   );
-  return () => {
-    if (unsubUsers) unsubUsers();
-  };
+
+  return unsubUsers;
 }
 
+/**
+ * Start listening to all transactions in real time.
+ */
 export function startTransactionsRealtimeSync(callback: TransactionsCallback): () => void {
   if (unsubTxs) unsubTxs();
 
-  const txsCol = collection(db, 'transactions');
+  const txCol = collection(db, 'transactions');
+  const q = query(txCol, orderBy('timestamp', 'desc'), limit(150));
   unsubTxs = onSnapshot(
-    txsCol,
+    q,
     (snapshot) => {
       if (snapshot.empty) return;
       const liveTxs: LocalTransaction[] = [];
@@ -61,94 +84,71 @@ export function startTransactionsRealtimeSync(callback: TransactionsCallback): (
       });
       callback(liveTxs);
     },
-    (err) => console.warn('Transactions sync notice:', err.message)
+    (err) => {
+      console.warn('Realtime transactions sync error:', err);
+    }
   );
-  return () => {
-    if (unsubTxs) unsubTxs();
-  };
+
+  return unsubTxs;
 }
 
+/**
+ * Start listening to the central admin vault in real time.
+ */
 export function startVaultRealtimeSync(callback: VaultCallback): () => void {
   if (unsubVault) unsubVault();
 
-  const vaultDocRef = doc(db, 'admin_vault', 'main');
+  const vaultDoc = doc(db, 'admin_vault', 'central');
   unsubVault = onSnapshot(
-    vaultDocRef,
+    vaultDoc,
     (snapshot) => {
       if (!snapshot.exists()) return;
       callback(snapshot.data() as AdminVault);
     },
-    (err) => console.warn('Vault sync notice:', err.message)
-  );
-  return () => {
-    if (unsubVault) unsubVault();
-  };
-}
-
-export async function fetchAllUsersNow(): Promise<CommunityUser[]> {
-  try {
-    const snap = await getDocs(collection(db, 'users'));
-    const list: CommunityUser[] = [];
-    snap.forEach((d) => {
-      list.push({ ...(d.data() as CommunityUser), id: d.id });
-    });
-    return list;
-  } catch {
-    return [];
-  }
-}
-
-export async function fetchAllTransactionsNow(): Promise<LocalTransaction[]> {
-  try {
-    const snap = await getDocs(collection(db, 'transactions'));
-    const list: LocalTransaction[] = [];
-    snap.forEach((d) => list.push(d.data() as LocalTransaction));
-    return list;
-  } catch {
-    return [];
-  }
-}
-
-export async function fetchVaultNow(): Promise<AdminVault | null> {
-  try {
-    const snap = await getDoc(doc(db, 'admin_vault', 'main'));
-    if (snap.exists()) {
-      return snap.data() as AdminVault;
+    (err) => {
+      console.warn('Realtime vault sync error:', err);
     }
-    return null;
-  } catch {
-    return null;
-  }
+  );
+
+  return unsubVault;
 }
 
+/**
+ * Save / Update a single user in Firestore
+ */
 export async function syncUserToCloud(user: CommunityUser): Promise<void> {
   try {
-    const cleanUser = { ...user };
-    const userDocRef = doc(db, 'users', user.id);
-    await setDoc(userDocRef, cleanUser, { merge: true });
-  } catch (e) {
-    console.warn('Failed to sync user to cloud:', e);
+    await setDoc(doc(db, 'users', user.id), user, { merge: true });
+  } catch (err) {
+    console.error('Failed to sync user to Firestore:', err);
   }
 }
 
+/**
+ * Save a new transaction in Firestore
+ */
 export async function syncTransactionToCloud(tx: LocalTransaction): Promise<void> {
   try {
-    const txDocRef = doc(db, 'transactions', tx.id);
-    await setDoc(txDocRef, tx);
-  } catch (e) {
-    console.warn('Failed to sync transaction to cloud:', e);
+    await setDoc(doc(db, 'transactions', tx.id), tx);
+  } catch (err) {
+    console.error('Failed to sync transaction to Firestore:', err);
   }
 }
 
+/**
+ * Save updated admin vault state to Firestore
+ */
 export async function syncVaultToCloud(vault: AdminVault): Promise<void> {
   try {
-    const vaultDocRef = doc(db, 'admin_vault', 'main');
-    await setDoc(vaultDocRef, vault, { merge: true });
-  } catch (e) {
-    console.warn('Failed to sync vault to cloud:', e);
+    await setDoc(doc(db, 'admin_vault', 'central'), vault, { merge: true });
+  } catch (err) {
+    console.error('Failed to sync vault to Firestore:', err);
   }
 }
 
+/**
+ * Atomic batch update for a money transfer between two community members
+ */
 export async function syncTransferBatchToCloud(params: {
   sender: CommunityUser;
   recipient: CommunityUser;
@@ -160,39 +160,107 @@ export async function syncTransferBatchToCloud(params: {
 }): Promise<void> {
   try {
     const batch = writeBatch(db);
+    batch.set(doc(db, 'users', params.sender.id), params.sender, { merge: true });
+    if (params.allSenderIds) {
+      params.allSenderIds.forEach((sId) => {
+        if (sId !== params.sender.id) {
+          batch.set(doc(db, 'users', sId), { ...params.sender, id: sId }, { merge: true });
+        }
+      });
+    }
 
-    const senderIds = params.allSenderIds?.length ? params.allSenderIds : [params.sender.id];
-    senderIds.forEach((sid) => {
-      batch.set(doc(db, 'users', sid), { balance: params.sender.balance }, { merge: true });
-    });
+    batch.set(doc(db, 'users', params.recipient.id), params.recipient, { merge: true });
+    if (params.allRecipientIds) {
+      params.allRecipientIds.forEach((rId) => {
+        if (rId !== params.recipient.id) {
+          batch.set(doc(db, 'users', rId), { ...params.recipient, id: rId }, { merge: true });
+        }
+      });
+    }
 
-    const recipientIds = params.allRecipientIds?.length ? params.allRecipientIds : [params.recipient.id];
-    recipientIds.forEach((rid) => {
-      batch.set(doc(db, 'users', rid), { balance: params.recipient.balance }, { merge: true });
-    });
-
-    batch.set(doc(db, 'users', params.admin.id), { balance: params.admin.balance }, { merge: true });
-    batch.set(doc(db, 'admin_vault', 'main'), params.adminVault, { merge: true });
+    batch.set(doc(db, 'users', params.admin.id), params.admin, { merge: true });
+    batch.set(doc(db, 'admin_vault', 'central'), params.adminVault, { merge: true });
     batch.set(doc(db, 'transactions', params.transaction.id), params.transaction);
-
     await batch.commit();
-  } catch (e) {
-    console.warn('Batch transfer cloud sync error:', e);
+  } catch (err) {
+    console.error('Failed to sync transfer batch to Firestore:', err);
   }
 }
 
+/**
+ * Atomic batch update for cash supply/withdraw by admin
+ */
 export async function syncAdminCashActionToCloud(params: {
   targetUser: CommunityUser;
   adminVault: AdminVault;
   transaction: LocalTransaction;
+  allTargetIds?: string[];
 }): Promise<void> {
   try {
     const batch = writeBatch(db);
-    batch.set(doc(db, 'users', params.targetUser.id), { balance: params.targetUser.balance }, { merge: true });
-    batch.set(doc(db, 'admin_vault', 'main'), params.adminVault, { merge: true });
+    batch.set(doc(db, 'users', params.targetUser.id), params.targetUser, { merge: true });
+    if (params.allTargetIds) {
+      params.allTargetIds.forEach((tId) => {
+        if (tId !== params.targetUser.id) {
+          batch.set(doc(db, 'users', tId), { ...params.targetUser, id: tId }, { merge: true });
+        }
+      });
+    }
+    batch.set(doc(db, 'admin_vault', 'central'), params.adminVault, { merge: true });
     batch.set(doc(db, 'transactions', params.transaction.id), params.transaction);
     await batch.commit();
+  } catch (err) {
+    console.error('Failed to sync cash action batch to Firestore:', err);
+  }
+}
+
+/**
+ * Direct fetch all users without waiting for snapshot (used for polling & visibility change)
+ */
+export async function fetchAllUsersNow(): Promise<CommunityUser[]> {
+  try {
+    const snap = await getDocs(collection(db, 'users'));
+    if (snap.empty) return [];
+    const list: CommunityUser[] = [];
+    snap.forEach((d) => {
+      list.push({ ...(d.data() as CommunityUser), id: d.id });
+    });
+    return list;
   } catch (e) {
-    console.warn('Admin cash action cloud sync error:', e);
+    console.warn('fetchAllUsersNow error:', e);
+    return [];
+  }
+}
+
+/**
+ * Direct fetch all transactions without waiting for snapshot
+ */
+export async function fetchAllTransactionsNow(): Promise<LocalTransaction[]> {
+  try {
+    const q = query(collection(db, 'transactions'), orderBy('timestamp', 'desc'), limit(150));
+    const snap = await getDocs(q);
+    if (snap.empty) return [];
+    const list: LocalTransaction[] = [];
+    snap.forEach((d) => {
+      list.push(d.data() as LocalTransaction);
+    });
+    return list;
+  } catch (e) {
+    console.warn('fetchAllTransactionsNow error:', e);
+    return [];
+  }
+}
+
+/**
+ * Direct fetch admin vault
+ */
+export async function fetchVaultNow(): Promise<AdminVault | null> {
+  try {
+    const snap = await getDoc(doc(db, 'admin_vault', 'central'));
+    if (!snap.exists()) return null;
+    return snap.data() as AdminVault;
+  } catch (e) {
+    console.warn('fetchVaultNow error:', e);
+    return null;
   }
 }

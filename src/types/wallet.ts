@@ -1,3 +1,5 @@
+export type UserRole = 'admin' | 'merchant' | 'resident';
+
 export interface SavedContact {
   id: string;
   name: string;
@@ -10,15 +12,15 @@ export interface SavedContact {
 export interface CommunityUser {
   id: string;
   name: string;
-  username?: string;
+  username?: string; // e.g. 'admin'
   phone: string;
-  accountNumber: string;
-  role: 'resident' | 'merchant' | 'admin';
+  accountNumber: string; // e.g. 'POCKET-562'
+  role: UserRole;
   shopName?: string;
-  address?: string;
-  balance: number;
-  pin?: string;
+  balance: number; // in Syrian Pounds (ل.س)
+  pin: string; // Password / PIN (initially 'admin' for admin)
   avatar?: string;
+  address?: string;
   registeredAt: string;
   savedContacts?: SavedContact[];
 }
@@ -28,8 +30,8 @@ export interface AdminVault {
   cashInDrawer: number;
   cashPaidOut: number;
   totalIssuedToUsers: number;
-  transferFeeRate: number; // e.g. 0.01 for 1%
-  totalAdminFeesCollected: number;
+  transferFeeRate?: number; // e.g. 0.01 for 1%
+  totalAdminFeesCollected?: number; // total revenue returned to admin from transfers
 }
 
 export type LocalTxType =
@@ -42,7 +44,7 @@ export interface LocalTransaction {
   id: string;
   type: LocalTxType;
   amount: number;
-  fee?: number;
+  fee?: number; // Amount returning to admin from user-to-user transfer
   senderId: string;
   senderName: string;
   recipientId: string;
@@ -50,7 +52,7 @@ export interface LocalTransaction {
   timestamp: string;
   note: string;
   receiptCode: string;
-  isQrScan?: boolean;
+  isQrScan: boolean;
 }
 
 export interface LocalWalletState {

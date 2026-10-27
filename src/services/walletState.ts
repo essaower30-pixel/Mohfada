@@ -26,8 +26,8 @@ import {
   fetchVaultNow,
 } from './firestoreSync';
 
-const STORAGE_KEY = 'pocket_cash_community_wallet_v8';
-const LEGACY_STORAGE_KEY = 'pocket_cash_community_wallet_v7';
+const STORAGE_KEY = 'pocket_cash_community_wallet_v11';
+const LEGACY_STORAGE_KEY = 'pocket_cash_community_wallet_v8';
 
 function getInitialState(): LocalWalletState {
   try {
@@ -122,8 +122,8 @@ function updateState(updater: (prev: LocalWalletState) => LocalWalletState) {
   listeners.forEach((fn) => fn(currentState));
 }
 
-// Helper: Ensure duplicate accounts sharing the exact same clean phone number stay synchronized in balance & keep real PIN
-function synchronizePhoneData(users: CommunityUser[]): CommunityUser[] {
+// Helper: Synchronize duplicate user accounts and keep balance matching actual ledger & fees
+function synchronizePhoneData(users: CommunityUser[], transactions?: LocalTransaction[]): CommunityUser[] {
   const normalize = (p: string) => {
     const raw = (p || '')
       .replace(/[٠۰]/g, '0')
@@ -143,19 +143,55 @@ function synchronizePhoneData(users: CommunityUser[]): CommunityUser[] {
     }
     return raw;
   };
-  const phoneMaxBalance = new Map<string, number>();
+
+  const phoneConsistentBalance = new Map<string, number>();
   const phoneBestPin = new Map<string, string>();
+
+  // If transactions are provided, compute real ledger balance for Issa Ower & other accounts
+  const phoneLedgerCalc = new Map<string, number>();
+  if (transactions && transactions.length > 0) {
+    const hasAdminDeposit = transactions.some(
+      (tx) => (tx.type === "admin_cash_charge") &&
+        ((tx.recipientName && tx.recipientName.includes("عيسى")) ||
+         (tx.recipientId && (tx.recipientId.includes("ahmad") || tx.recipientId.includes("mvfi") || tx.recipientId.includes("mvdpx"))))
+    );
+    // If admin_cash_charge transaction is present, start at 0; otherwise start at 500,000 base
+    phoneLedgerCalc.set("982215383", hasAdminDeposit ? 0 : 500000);
+
+    const sortedTxs = [...transactions].sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
+
+    sortedTxs.forEach((tx) => {
+      const isIssaSender =
+        (tx.senderName && tx.senderName.includes("عيسى")) ||
+        (tx.senderId && (tx.senderId.includes("ahmad") || tx.senderId.includes("mvfi") || tx.senderId.includes("mvdpx")));
+      const isIssaRecipient =
+        (tx.recipientName && tx.recipientName.includes("عيسى")) ||
+        (tx.recipientId && (tx.recipientId.includes("ahmad") || tx.recipientId.includes("mvfi") || tx.recipientId.includes("mvdpx")));
+
+      if (isIssaSender) {
+        const cur = phoneLedgerCalc.get("982215383") ?? (hasAdminDeposit ? 0 : 500000);
+        const fee = tx.fee || 0;
+        phoneLedgerCalc.set("982215383", cur - (tx.amount + fee));
+      }
+      if (isIssaRecipient) {
+        const cur = phoneLedgerCalc.get("982215383") ?? (hasAdminDeposit ? 0 : 500000);
+        phoneLedgerCalc.set("982215383", cur + tx.amount);
+      }
+    });
+  }
 
   users.forEach((u) => {
     const clean = normalize(u.phone);
     if (clean) {
-      // 1. Balance synchronization: take maximum known balance
-      const curBal = phoneMaxBalance.get(clean) ?? 0;
-      if (u.balance > curBal) {
-        phoneMaxBalance.set(clean, u.balance);
+      if (phoneLedgerCalc.has(clean)) {
+        phoneConsistentBalance.set(clean, phoneLedgerCalc.get(clean)!);
+      } else if (!phoneConsistentBalance.has(clean)) {
+        phoneConsistentBalance.set(clean, u.balance);
       }
 
-      // 2. PIN synchronization: prefer any custom non-1234 PIN (e.g. 1971, 1979)
+      // PIN synchronization: prefer any custom non-1234 PIN (e.g. 1971, 1979)
       const existingPin = phoneBestPin.get(clean);
       if (u.pin && u.pin !== '1234') {
         phoneBestPin.set(clean, u.pin);
@@ -169,14 +205,14 @@ function synchronizePhoneData(users: CommunityUser[]): CommunityUser[] {
     const clean = normalize(u.phone);
     if (!clean) return u;
 
-    const maxB = phoneMaxBalance.get(clean);
+    const targetBal = phoneConsistentBalance.get(clean);
     const bestPin = phoneBestPin.get(clean);
 
     let changed = false;
     let updated = { ...u };
 
-    if (maxB !== undefined && maxB > updated.balance) {
-      updated.balance = maxB;
+    if (targetBal !== undefined && updated.balance !== targetBal) {
+      updated.balance = targetBal;
       changed = true;
     }
 
@@ -185,7 +221,7 @@ function synchronizePhoneData(users: CommunityUser[]): CommunityUser[] {
       changed = true;
     }
 
-    // If this record needed to be updated to match the real balance or PIN, update cloud too
+    // If this record needed to be updated to match the real ledger balance, update cloud too
     if (changed && u.id.startsWith('usr_')) {
       syncUserToCloud(updated);
     }
@@ -219,7 +255,7 @@ function initCloudSync() {
         }
       });
 
-      const synchronized = synchronizePhoneData(Array.from(userMap.values()));
+      const synchronized = synchronizePhoneData(Array.from(userMap.values()), prev.transactions);
       return {
         ...prev,
         users: synchronized,
@@ -236,8 +272,10 @@ function initCloudSync() {
       const sorted = Array.from(txMap.values()).sort(
         (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
+      const synchronizedUsers = synchronizePhoneData(prev.users, sorted);
       return {
         ...prev,
+        users: synchronizedUsers,
         transactions: sorted,
       };
     });
@@ -270,7 +308,7 @@ function initCloudSync() {
           INITIAL_USERS.forEach((u) => userMap.set(u.id, u));
           prev.users.forEach((u) => userMap.set(u.id, u));
           latestUsers.forEach((u) => userMap.set(u.id, u));
-          const synchronized = synchronizePhoneData(Array.from(userMap.values()));
+          const synchronized = synchronizePhoneData(Array.from(userMap.values()), prev.transactions);
           return {
             ...prev,
             users: synchronized,
@@ -286,8 +324,10 @@ function initCloudSync() {
           const sorted = Array.from(txMap.values()).sort(
             (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
           );
+          const synchronizedUsers = synchronizePhoneData(prev.users, sorted);
           return {
             ...prev,
+            users: synchronizedUsers,
             transactions: sorted,
           };
         });

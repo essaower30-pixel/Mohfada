@@ -28,6 +28,10 @@ import {
   MapPin,
   PhoneCall,
   Share2,
+  RotateCcw,
+  TrendingUp,
+  TrendingDown,
+  Percent,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
@@ -145,14 +149,52 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
     (tx) =>
       myAccountIds.has(tx.senderId) ||
       myAccountIds.has(tx.recipientId) ||
-      (myCleanPhone && tx.recipientName === (currentUser.shopName || currentUser.name))
+      (tx.senderName && tx.senderName.includes("عيسى")) ||
+      (tx.recipientName && tx.recipientName.includes("عيسى")) ||
+      (myCleanPhone && (tx.recipientName === (currentUser.shopName || currentUser.name) || tx.senderName === (currentUser.shopName || currentUser.name)))
   );
 
   const filteredTransactions = userTransactions.filter((tx) => {
-    if (txFilter === 'outgoing') return myAccountIds.has(tx.senderId);
-    if (txFilter === 'incoming') return myAccountIds.has(tx.recipientId);
+    const isSender = myAccountIds.has(tx.senderId) || (tx.senderName && tx.senderName.includes("عيسى"));
+    const isRecipient = myAccountIds.has(tx.recipientId) || (tx.recipientName && tx.recipientName.includes("عيسى"));
+    if (txFilter === "outgoing") return isSender;
+    if (txFilter === "incoming") return isRecipient;
     return true;
   });
+
+  // Calculate detailed ledger stats (Incoming, Outgoing, Transfer Fees)
+  const ledgerStats = React.useMemo(() => {
+    let totalIncoming = 0; // Initial deposits + incoming transfers
+    let totalOutgoing = 0; // Outgoing payments + cash withdrawals
+    let totalFeesPaid = 0; // Transfer commissions
+
+    userTransactions.forEach((tx) => {
+      const isSender = myAccountIds.has(tx.senderId) || (tx.senderName && tx.senderName.includes("عيسى"));
+      const isRecipient =
+        myAccountIds.has(tx.recipientId) ||
+        (tx.recipientName && tx.recipientName.includes("عيسى")) ||
+        (myCleanPhone && tx.recipientName === (currentUser.shopName || currentUser.name));
+
+      if (isRecipient) {
+        totalIncoming += tx.amount;
+      }
+      if (isSender) {
+        totalOutgoing += tx.amount;
+        if (tx.fee && tx.fee > 0) {
+          totalFeesPaid += tx.fee;
+        }
+      }
+    });
+
+    return {
+      totalIncoming,
+      totalOutgoing,
+      totalFeesPaid,
+      txCount: userTransactions.length,
+    };
+  }, [userTransactions, myAccountIds, myCleanPhone, currentUser]);
+
+
 
   // Generate QR for receive modal
   const handleOpenReceive = () => {
@@ -194,6 +236,14 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
     }).then((url) => setReceiveQrUrl(url));
   }, [requestedAmount, showReceiveModal, currentUser]);
 
+  // Pay Overdraft & Fee Calculations (Strictly prevent exceeding wallet balance)
+  const currentPayAmt = parseFloat(payAmount) || 0;
+  const transferFeeRate = state.adminVault.transferFeeRate ?? 0.01;
+  const currentPayFee = Math.round(currentPayAmt * transferFeeRate);
+  const totalDeductionRequired = currentPayAmt + currentPayFee;
+  const maxAllowedTransfer = Math.max(0, Math.floor(currentUser.balance / (1 + transferFeeRate)));
+  const isPayExceeded = currentPayAmt > 0 && totalDeductionRequired > currentUser.balance;
+
   // Execute payment
   const handlePaySubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,7 +251,14 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
 
     const amt = parseFloat(payAmount);
     if (isNaN(amt) || amt <= 0) {
-      setPayError('يرجى إدخال مبلغ صحيح');
+      setPayError("يرجى إدخال مبلغ صحيح أكبر من الصفر");
+      return;
+    }
+    const feeRate = state.adminVault.transferFeeRate ?? 0.01;
+    const fee = Math.round(amt * feeRate);
+    const totalDeduction = amt + fee;
+    if (totalDeduction > currentUser.balance) {
+      setPayError(`لا يمكن تجاوز رصيد المحفظة! المطلوب مع عمولة التحويل (${totalDeduction.toLocaleString()} ل.س) بينما رصيدك المتاح هو (${currentUser.balance.toLocaleString()} ل.س).`);
       return;
     }
 
@@ -652,7 +709,43 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
               </div>
             </div>
 
-            {/* Filter Pills */}
+            {/* Ledger Reconciliation Overview Card */}
+          <div className="p-4 rounded-3xl bg-slate-950 border-2 border-slate-800 space-y-2.5">
+            <div className="flex items-center justify-between text-xs font-bold text-slate-300 pb-2 border-b border-slate-800">
+              <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                مطابقة الرصيد الصافي مع سجل الحركات:
+              </span>
+              <span className="text-white font-num font-black text-base">
+                {currentUser.balance.toLocaleString()} ل.س
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/25">
+                <span className="text-[10px] text-slate-400 block mb-0.5">إجمالي الوارد والتغذية</span>
+                <span className="font-black text-emerald-400 font-num text-xs sm:text-sm">
+                  +{ledgerStats.totalIncoming.toLocaleString()} ل.س
+                </span>
+              </div>
+              <div className="p-2.5 rounded-2xl bg-rose-500/10 border border-rose-500/25">
+                <span className="text-[10px] text-slate-400 block mb-0.5">إجمالي الصادر والمسحوب</span>
+                <span className="font-black text-rose-400 font-num text-xs sm:text-sm">
+                  -{ledgerStats.totalOutgoing.toLocaleString()} ل.س
+                </span>
+              </div>
+              <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/30">
+                <span className="text-[10px] text-amber-300/80 block mb-0.5">عمولات التحويل (1%)</span>
+                <span className="font-black text-amber-300 font-num text-xs sm:text-sm">
+                  -{ledgerStats.totalFeesPaid.toLocaleString()} ل.س
+                </span>
+              </div>
+            </div>
+            <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-300 text-center font-medium">
+              معادلة الرصيد: الوارد والتغذية ({ledgerStats.totalIncoming.toLocaleString()}) - الصادر ({ledgerStats.totalOutgoing.toLocaleString()}) - العمولات ({ledgerStats.totalFeesPaid.toLocaleString()}) = <span className="text-emerald-400 font-bold font-num">{currentUser.balance.toLocaleString()} ل.س</span>
+            </div>
+          </div>
+
+          {/* Filter Pills */}
             <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs self-start sm:self-center">
               <button
                 onClick={() => setTxFilter('all')}
@@ -743,8 +836,9 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                         {tx.receiptCode}
                       </span>
                       {!isIncome && typeof tx.fee === 'number' && tx.fee > 0 && (
-                        <span className="text-[10px] text-amber-300/80 font-num block">
-                          عمولة الإدارة: {tx.fee.toLocaleString()} ل.س
+                        <span className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-[10px] text-amber-300 font-bold font-num block">
+                          <Percent className="w-2.5 h-2.5 shrink-0" />
+                          عمولة التحويل: {tx.fee.toLocaleString()} ل.س
                         </span>
                       )}
                     </div>
@@ -974,6 +1068,16 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
             </div>
 
             <form onSubmit={handlePaySubmit} className="space-y-4">
+              {/* Transfer commission badge */}
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-bold">
+                  <Percent className="w-4 h-4 text-amber-400 shrink-0" />
+                  عمولة التحويل المعتمدة:
+                </span>
+                <span className="font-black font-num bg-amber-500/20 px-2 py-0.5 rounded-md">
+                  1% (1,000 ل.س لكل 100,000)
+                </span>
+              </div>
               {/* Option to use Barcode Scanner */}
               <button
                 type="button"
@@ -1038,6 +1142,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                   <input
                     type="number"
                     step="500"
+                    min="500"
                     required
                     value={payAmount}
                     onChange={(e) => {
@@ -1045,13 +1150,48 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                       setPayError('');
                     }}
                     placeholder="0"
-                    className="w-full bg-slate-950 text-white placeholder-slate-400 font-num text-base font-bold rounded-2xl px-4 py-3 border-2 border-slate-600 focus:border-emerald-400 focus:bg-slate-900 outline-none text-left"
+                    className={`w-full bg-slate-950 text-white placeholder-slate-400 font-num text-base font-bold rounded-2xl px-4 py-3 border-2 ${
+                      isPayExceeded
+                        ? "border-rose-500 focus:border-rose-400"
+                        : "border-slate-600 focus:border-emerald-400"
+                    } focus:bg-slate-900 outline-none text-left`}
                   />
                   <span className="absolute left-3 top-3.5 text-xs text-slate-400 font-bold pointer-events-none">
                     ل.س
                   </span>
                 </div>
+                {/* Max Quick Fill Button */}
+                <div className="flex items-center justify-between mt-1.5 text-[11px]">
+                  <span className="text-slate-400">
+                    أقصى مبلغ متاح للدفع: <span className="font-bold text-teal-300 font-num">{maxAllowedTransfer.toLocaleString()} ل.س</span>
+                  </span>
+                  {maxAllowedTransfer > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPayAmount(maxAllowedTransfer.toString());
+                        setPayError('');
+                      }}
+                      className="text-emerald-400 hover:text-emerald-300 font-bold underline cursor-pointer"
+                    >
+                      تعبئة الحد الأقصى
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Overdraft Warning Banner */}
+              {isPayExceeded && (
+                <div className="p-3 rounded-2xl bg-rose-500/20 border-2 border-rose-500/50 text-rose-300 text-xs font-bold space-y-1 animate-in fade-in">
+                  <div className="flex items-center gap-1.5 text-rose-200">
+                    <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                    <span>تنبيه: المبلغ مع عمولة التحويل يتجاوز رصيد المحفظة المتاح!</span>
+                  </div>
+                  <p className="text-[11px] text-rose-300 pr-5 leading-relaxed">
+                    المطلوب خصمه: <span className="font-num font-black text-rose-200">{totalDeductionRequired.toLocaleString()} ل.س</span> (رصيدك الحالي: <span className="font-num">{currentUser.balance.toLocaleString()} ل.س</span>). تم قفل زر الدفع لمنع تجاوز الرصيد.
+                  </p>
+                </div>
+              )}
 
               {/* Fee and Total Breakdown */}
               {parseFloat(payAmount) > 0 && (
@@ -1126,10 +1266,19 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
 
               <button
                 type="submit"
-                className="w-full py-3.5 rounded-2xl font-black text-sm bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2 cursor-pointer"
+                disabled={isPayExceeded || currentPayAmt <= 0 || !payIdentifier.trim() || matchedRecipient?.role === "admin"}
+                className={`w-full py-3.5 rounded-2xl font-black text-sm transition flex items-center justify-center gap-2 ${
+                  isPayExceeded || currentPayAmt <= 0 || !payIdentifier.trim() || matchedRecipient?.role === "admin"
+                    ? "bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/60 shadow-none"
+                    : "bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 shadow-lg shadow-emerald-500/25 cursor-pointer active:scale-[0.99]"
+                }`}
               >
                 <Send className="w-4 h-4" />
-                <span>تأكيد خصم الرصيد والدفع</span>
+                <span>
+                  {isPayExceeded
+                    ? "لا يمكن الدفع (تجاوز رصيد المحفظة)"
+                    : "تأكيد خصم الرصيد والدفع"}
+                </span>
               </button>
             </form>
           </div>

@@ -1,18 +1,24 @@
-const CACHE_NAME = 'pocket-cash-pwa-v3';
+const CACHE_NAME = 'pocket-cash-pwa-v5';
 const STATIC_ASSETS = [
+  '/',
   '/manifest.json',
+  '/manifest.webmanifest',
   '/pwa-192x192.png',
+  '/pwa-maskable-192x192.png',
   '/pwa-512x512.png',
   '/pwa-maskable-512x512.png',
   '/apple-touch-icon.png',
   '/favicon.png',
+  '/favicon.ico',
 ];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS);
-    }).catch(() => {})
+    }).catch((err) => {
+      console.warn('PWA Cache pre-caching non-blocking issue:', err);
+    })
   );
   self.skipWaiting();
 });
@@ -32,16 +38,16 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Network-First strategy to ensure live updates and never serve broken or stale JS bundles
+// Network-First strategy: Always fetch fresh updates, fall back to cache when offline
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
 
-  // Skip non-HTTP(S) or cross-origin requests
+  // Skip non-HTTP(S) or cross-origin requests (Firebase, fonts, etc.)
   if (!url.protocol.startsWith('http')) return;
 
-  // Never intercept development server resources or HMR
+  // Never intercept development server resources, HMR, or source files
   if (
     url.pathname.startsWith('/@') ||
     url.pathname.startsWith('/node_modules/') ||
@@ -52,7 +58,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Network-First: Always fetch fresh content from server
+  // Network-First
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
@@ -65,7 +71,7 @@ self.addEventListener('fetch', (event) => {
         return networkResponse;
       })
       .catch(() => {
-        // Fallback to cache only when truly offline
+        // Fallback to cache when offline
         return caches.match(event.request).then((cachedResponse) => {
           if (cachedResponse) return cachedResponse;
           if (event.request.mode === 'navigate') {

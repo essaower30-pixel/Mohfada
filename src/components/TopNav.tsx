@@ -17,6 +17,7 @@ import { usePWAInstall } from '../hooks/usePWAInstall';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { AdminProfileModal } from './AdminProfileModal';
 import { ShareAppModal } from './ShareAppModal';
+import { PWAInstallGuideModal } from './PWAInstallGuideModal';
 
 interface TopNavProps {
   onOpenLogin: () => void;
@@ -24,11 +25,23 @@ interface TopNavProps {
 
 export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
   const { currentUser, setView, state, logout } = useCommunityWallet();
-  const { isInstallable, triggerInstall } = usePWAInstall();
+  const { isInstallable, isInstalled, triggerInstall } = usePWAInstall();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showAdminProfile, setShowAdminProfile] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
+
+  const handleInstallClick = async () => {
+    if (isInstallable) {
+      const ok = await triggerInstall();
+      if (!ok) {
+        setShowInstallGuide(true);
+      }
+    } else {
+      setShowInstallGuide(true);
+    }
+  };
 
   // Admin features are ONLY visible to the single designated manager user
   const isAdmin = currentUser?.role === 'admin';
@@ -85,12 +98,16 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
 
         {/* Center / Right controls */}
         <div className="flex items-center gap-2">
-          {/* PWA 1-Click Install Button */}
-          {isInstallable && (
+          {/* PWA Install Button (shown whenever not already in standalone mode) */}
+          {!isInstalled && (
             <button
               type="button"
-              onClick={triggerInstall}
-              className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 animate-pulse hover:opacity-90 transition cursor-pointer"
+              onClick={handleInstallClick}
+              className={`py-1.5 px-3 rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-md transition cursor-pointer ${
+                isInstallable
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-emerald-500/20 animate-pulse hover:opacity-90'
+                  : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
+              }`}
               title="تثبيت التطبيق على الهاتف"
             >
               <Smartphone className="w-3.5 h-3.5" />
@@ -302,6 +319,12 @@ export const TopNav: React.FC<TopNavProps> = ({ onOpenLogin }) => {
       <ShareAppModal
         isOpen={showShareModal}
         onClose={() => setShowShareModal(false)}
+      />
+
+      {/* PWA Install Guidance & Native Trigger Modal */}
+      <PWAInstallGuideModal
+        isOpen={showInstallGuide}
+        onClose={() => setShowInstallGuide(false)}
       />
     </header>
   );

@@ -33,9 +33,10 @@ export default function App() {
   // If user previously logged in/out, default to 'login' tab so they can immediately type password; otherwise 'register'
   const hasRememberedUser =
     typeof window !== 'undefined' &&
-    (!!localStorage.getItem('pocket_cash_last_user_phone') ||
-     !!localStorage.getItem('pocket_cash_last_user_id') ||
-     !!localStorage.getItem('pocket_cash_last_user_name'));
+    !!(
+      localStorage.getItem('pocket_cash_last_user_phone')?.trim() ||
+      localStorage.getItem('pocket_cash_last_user_id')?.trim()
+    );
 
   if (!currentUser) {
     return (

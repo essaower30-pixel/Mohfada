@@ -21,6 +21,8 @@ import {
 import confetti from 'canvas-confetti';
 import { useCommunityWallet } from '../services/walletState';
 import { formatPhoneForWhatsApp, WhatsAppActionButtons } from '../utils/whatsapp';
+import { usePWAInstall } from '../hooks/usePWAInstall';
+import { PWAInstallGuideModal } from './PWAInstallGuideModal';
 
 export interface LoginModalProps {
   isOpen: boolean;
@@ -51,6 +53,19 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   initialTab = 'register',
 }) => {
   const { state, switchUser, registerNewUser } = useCommunityWallet();
+  const { isInstallable, isInstalled, triggerInstall } = usePWAInstall();
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
+
+  const handleInstallClick = async () => {
+    if (isInstallable) {
+      const ok = await triggerInstall();
+      if (!ok) {
+        setShowInstallGuide(true);
+      }
+    } else {
+      setShowInstallGuide(true);
+    }
+  };
 
   // Active Tab: Login vs Register
   const [activeTab, setActiveTab] = useState<'login' | 'register'>(initialTab);
@@ -68,13 +83,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   // Ref for password input to auto-focus when phone number is retained
   const passwordInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Retain user's phone on logout / reload from localStorage or default to Abu Mohammed's phone
+  // Retain user's phone on logout / reload ONLY if previously saved on this specific device
   const [loginIdentifier, setLoginIdentifier] = useState(() => {
     try {
       const saved = localStorage.getItem('pocket_cash_last_user_phone');
-      if (saved) return saved;
+      if (saved && typeof saved === 'string' && saved.trim()) {
+        return saved.trim();
+      }
     } catch (e) {}
-    return '0982215383';
+    return '';
   });
 
   const [loginPassword, setLoginPassword] = useState('');
@@ -102,7 +119,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [regError, setRegError] = useState('');
   const [regSuccess, setRegSuccess] = useState('');
 
-  // Auto-identify recognized user from loginIdentifier or saved info
+  // Auto-identify recognized user from loginIdentifier ONLY when a valid phone or exact username is typed
   const recognizedUser = useMemo(() => {
     const raw = (loginIdentifier || '').trim();
     if (!raw) return null;
@@ -110,24 +127,25 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     const cleanDigits = normalizePhone(clean);
     const cleanDigitsNoZero = cleanDigits.replace(/^0/, '');
 
+    // Require at least 3 characters or 7 digits to prevent false matches on short input
+    if (cleanDigits && cleanDigits.length < 7 && clean.length < 3) return null;
+
     return (
       state.users.find((u) => {
         const uPhoneClean = normalizePhone(u.phone || '');
         const uPhoneNoZero = uPhoneClean.replace(/^0/, '');
         const isPhoneMatch =
           cleanDigits &&
-          (uPhoneClean === cleanDigits ||
-            (cleanDigitsNoZero && uPhoneNoZero === cleanDigitsNoZero) ||
-            ((cleanDigits === '0982115383' || cleanDigits === '0982215383' || cleanDigitsNoZero === '982115383' || cleanDigitsNoZero === '982215383') &&
-             (uPhoneClean === '0982115383' || uPhoneClean === '0982215383' || uPhoneNoZero === '982115383' || uPhoneNoZero === '982215383')));
-        const isTextMatch =
+          cleanDigits.length >= 7 &&
+          (uPhoneClean === cleanDigits || (cleanDigitsNoZero && uPhoneNoZero === cleanDigitsNoZero));
+
+        const isExactTextMatch =
           (u.username && u.username.toLowerCase() === clean) ||
-          u.accountNumber.toLowerCase() === clean ||
-          u.name.toLowerCase() === clean ||
-          (clean.includes('محمد') && (u.name.includes('عوير') || u.name.includes('محمد'))) ||
-          (clean.includes('عوير') && u.name.includes('عوير')) ||
-          (u.shopName && u.shopName.toLowerCase().includes(clean));
-        return isPhoneMatch || isTextMatch;
+          (u.accountNumber && u.accountNumber.toLowerCase() === clean) ||
+          (u.name && u.name.toLowerCase() === clean) ||
+          (u.shopName && u.shopName.toLowerCase() === clean);
+
+        return isPhoneMatch || isExactTextMatch;
       }) || null
     );
   }, [loginIdentifier, state.users]);
@@ -460,8 +478,37 @@ export const LoginModal: React.FC<LoginModalProps> = ({
         </div>
       </div>
 
-        {/* Tab 1: Login Form */}
-        {activeTab === 'login' ? (
+      {/* PWA Quick Install Banner */}
+      {!isInstalled && (
+        <div className="mx-4 sm:mx-5 mt-3 p-2.5 rounded-2xl bg-emerald-950/30 border border-emerald-500/25 flex items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <img
+              src="/pwa-192x192.png"
+              alt="أيقونة المحفظة"
+              className="w-8 h-8 rounded-xl shrink-0 border border-emerald-500/40 object-cover shadow-sm"
+            />
+            <div className="min-w-0">
+              <p className="font-bold text-white text-xs truncate">تثبيت التطبيق على الهاتف</p>
+              <p className="text-[10px] text-slate-400 truncate">يعمل كأيقونة مستقلة وبديل لمحفظة الجيب</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleInstallClick}
+            className={`py-1.5 px-3 rounded-xl font-bold text-xs shrink-0 transition cursor-pointer flex items-center gap-1 ${
+              isInstallable
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-md shadow-emerald-500/20 animate-pulse'
+                : 'bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30'
+            }`}
+          >
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>تثبيت</span>
+          </button>
+        </div>
+      )}
+
+      {/* Tab 1: Login Form */}
+      {activeTab === 'login' ? (
           <div className="p-4 sm:p-5 space-y-4">
             {/* Recognized User Welcome Card on Logout / Return */}
             {recognizedUser && (
@@ -532,6 +579,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
                       onClick={() => {
                         setLoginIdentifier('');
                         setLoginPassword('');
+                        setLoginError('');
+                        try {
+                          localStorage.removeItem('pocket_cash_last_user_phone');
+                          localStorage.removeItem('pocket_cash_last_user_name');
+                          localStorage.removeItem('pocket_cash_last_user_id');
+                        } catch (e) {}
                       }}
                       className="text-[11px] text-slate-400 hover:text-rose-400 transition cursor-pointer"
                     >
@@ -866,6 +919,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </form>
           </div>
         )}
+
+      {/* PWA Install Guide Modal */}
+      <PWAInstallGuideModal
+        isOpen={showInstallGuide}
+        onClose={() => setShowInstallGuide(false)}
+      />
     </div>
   );
 

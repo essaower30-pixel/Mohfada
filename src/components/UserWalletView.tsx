@@ -32,6 +32,10 @@ import {
   TrendingUp,
   TrendingDown,
   Percent,
+  Eye,
+  EyeOff,
+  Calendar,
+  FileText,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
@@ -111,6 +115,58 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
 
   // Transaction filter
   const [txFilter, setTxFilter] = useState<'all' | 'outgoing' | 'incoming'>('all');
+
+  // Transaction details expand states (Eye icon toggle)
+  const [expandedTxIds, setExpandedTxIds] = useState<Record<string, boolean>>({});
+  const [copiedTxCode, setCopiedTxCode] = useState<string | null>(null);
+
+  const toggleTxExpand = (txId: string) => {
+    setExpandedTxIds((prev) => ({
+      ...prev,
+      [txId]: !prev[txId],
+    }));
+  };
+
+  const copyTxReceipt = (receiptCode: string, txId: string) => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(receiptCode);
+      setCopiedTxCode(txId);
+      setTimeout(() => setCopiedTxCode(null), 2000);
+    }
+  };
+
+  const formatTransactionDate = (timestamp?: string) => {
+    if (!timestamp) return 'غير محدد';
+    try {
+      const d = new Date(timestamp);
+      if (isNaN(d.getTime())) return timestamp;
+      return d.toLocaleString('ar-SY', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    } catch {
+      return timestamp;
+    }
+  };
+
+  const getTxTypeLabel = (type: string) => {
+    switch (type) {
+      case 'admin_cash_charge':
+        return 'شحن رصيد كاش (إيداع نقدي)';
+      case 'admin_cash_withdraw':
+        return 'سحب رصيد كاش (صرف نقدي)';
+      case 'merchant_pay':
+        return 'دفع مشتريات لمتجر / محل';
+      case 'p2p_transfer':
+        return 'تحويل مالي شخصي بين حسابين';
+      default:
+        return 'حركة مالية';
+    }
+  };
 
   // Success toast
   const [toastMsg, setToastMsg] = useState('');
@@ -740,8 +796,17 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                 </span>
               </div>
             </div>
-            <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-[11px] text-slate-300 text-center font-medium">
-              معادلة الرصيد: الوارد والتغذية ({ledgerStats.totalIncoming.toLocaleString()}) - الصادر ({ledgerStats.totalOutgoing.toLocaleString()}) - العمولات ({ledgerStats.totalFeesPaid.toLocaleString()}) = <span className="text-emerald-400 font-bold font-num">{currentUser.balance.toLocaleString()} ل.س</span>
+            <div className="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 text-center font-medium leading-relaxed flex flex-wrap items-center justify-center gap-1.5">
+              <span className="text-slate-400 font-bold">معادلة المطابقة:</span>
+              <span className="text-emerald-400 font-num font-bold">وارد ({ledgerStats.totalIncoming.toLocaleString()})</span>
+              <span className="text-slate-500 font-black">-</span>
+              <span className="text-rose-400 font-num font-bold">صادر ({ledgerStats.totalOutgoing.toLocaleString()})</span>
+              <span className="text-slate-500 font-black">-</span>
+              <span className="text-amber-300 font-num font-bold">عمولات ({ledgerStats.totalFeesPaid.toLocaleString()})</span>
+              <span className="text-slate-500 font-black">=</span>
+              <span className="text-emerald-300 font-black font-num bg-emerald-500/15 px-2 py-0.5 rounded-md border border-emerald-500/30">
+                {currentUser.balance.toLocaleString()} ل.س
+              </span>
             </div>
           </div>
 
@@ -789,59 +854,232 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
             <div className="space-y-2">
               {filteredTransactions.map((tx) => {
                 const isIncome = myAccountIds.has(tx.recipientId);
+                const isExpanded = !!expandedTxIds[tx.id];
+
                 return (
                   <div
                     key={tx.id}
-                    className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800/80 flex items-center justify-between gap-3 text-xs"
+                    className={`rounded-2xl border transition-all duration-200 text-xs overflow-hidden ${
+                      isExpanded
+                        ? 'p-3.5 bg-slate-900/95 border-teal-500/50 shadow-lg shadow-teal-950/20 ring-1 ring-teal-500/30'
+                        : 'p-3.5 bg-slate-950 border-slate-800/80 hover:border-slate-700/90'
+                    }`}
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                          isIncome
-                            ? 'bg-emerald-500/15 text-emerald-400'
-                            : 'bg-slate-800 text-slate-300'
-                        }`}
-                      >
-                        {isIncome ? (
-                          <ArrowDownLeft className="w-4 h-4 stroke-[2.5]" />
-                        ) : (
-                          <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
-                        )}
+                    {/* رأس بطاقة الحركة (موجز + زر العين لإظهار وإخفاء التفاصيل) */}
+                    <div
+                      className="flex items-center justify-between gap-2.5 cursor-pointer select-none"
+                      onClick={() => toggleTxExpand(tx.id)}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            isIncome
+                              ? 'bg-emerald-500/15 text-emerald-400'
+                              : 'bg-slate-800 text-slate-300'
+                          }`}
+                        >
+                          {isIncome ? (
+                            <ArrowDownLeft className="w-4 h-4 stroke-[2.5]" />
+                          ) : (
+                            <ArrowUpRight className="w-4 h-4 stroke-[2.5]" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-100 truncate">
+                              {isIncome ? `استلام من: ${tx.senderName}` : `دفع إلى: ${tx.recipientName}`}
+                            </p>
+                            {tx.isQrScan && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-500/15 text-teal-300 border border-teal-500/30 shrink-0">
+                                باركود
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-400 truncate mt-0.5">{tx.note || 'حركة مالية'}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-slate-100 truncate">
-                            {isIncome ? `استلام من: ${tx.senderName}` : `دفع إلى: ${tx.recipientName}`}
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-left shrink-0">
+                          <p
+                            className={`font-black font-num text-sm sm:text-base ${
+                              isIncome ? 'text-emerald-400' : 'text-slate-100'
+                            }`}
+                          >
+                            {isIncome ? '+' : '-'}
+                            {tx.amount.toLocaleString()} ل.س
                           </p>
-                          {tx.isQrScan && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-teal-500/15 text-teal-300 border border-teal-500/30">
-                              باركود
+                          <span className="text-[10px] text-slate-500 font-num font-mono block">
+                            {tx.receiptCode}
+                          </span>
+                          {!isIncome && typeof tx.fee === 'number' && tx.fee > 0 && !isExpanded && (
+                            <span className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-[10px] text-amber-300 font-bold font-num block">
+                              <Percent className="w-2.5 h-2.5 shrink-0" />
+                              عمولة: {tx.fee.toLocaleString()} ل.س
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-slate-400 truncate mt-0.5">{tx.note}</p>
+
+                        {/* أيقونة العين لإظهار وإخفاء تفاصيل الحركة */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleTxExpand(tx.id);
+                          }}
+                          className={`p-2 rounded-xl border transition-all flex items-center justify-center shrink-0 cursor-pointer ${
+                            isExpanded
+                              ? 'bg-teal-500/25 text-teal-300 border-teal-500/60 shadow-sm shadow-teal-500/20'
+                              : 'bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-teal-300 border-slate-800'
+                          }`}
+                          aria-label={isExpanded ? 'إخفاء تفاصيل الحركة' : 'إظهار تفاصيل الحركة'}
+                          title={isExpanded ? 'إخفاء تفاصيل الحركة' : 'إظهار تفاصيل الحركة (اسم المستلم/المحول، التاريخ، العمولة، سبب الحركة)'}
+                        >
+                          {isExpanded ? (
+                            <EyeOff className="w-4 h-4 text-teal-300" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
+                        </button>
                       </div>
                     </div>
 
-                    <div className="text-left shrink-0">
-                      <p
-                        className={`font-black font-num text-sm sm:text-base ${
-                          isIncome ? 'text-emerald-400' : 'text-slate-100'
-                        }`}
-                      >
-                        {isIncome ? '+' : '-'}
-                        {tx.amount.toLocaleString()} ل.س
-                      </p>
-                      <span className="text-[10px] text-slate-500 font-num font-mono block">
-                        {tx.receiptCode}
-                      </span>
-                      {!isIncome && typeof tx.fee === 'number' && tx.fee > 0 && (
-                        <span className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-500/15 border border-amber-500/30 text-[10px] text-amber-300 font-bold font-num block">
-                          <Percent className="w-2.5 h-2.5 shrink-0" />
-                          عمولة التحويل: {tx.fee.toLocaleString()} ل.س
-                        </span>
-                      )}
-                    </div>
+                    {/* تفاصيل الحركة الكاملة عند الضغط على العين أو البطاقة */}
+                    {isExpanded && (
+                      <div className="mt-3.5 pt-3 border-t border-slate-800/90 space-y-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                        {/* ترويسة التفاصيل ونوع الحركة */}
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-800/60 text-[11px]">
+                          <span className="inline-flex items-center gap-1.5 text-teal-300 font-bold">
+                            <Eye className="w-3.5 h-3.5 text-teal-400" />
+                            تفاصيل الحركة الكاملة
+                          </span>
+                          <span className="px-2 py-0.5 rounded-lg bg-slate-800/90 text-slate-200 font-semibold border border-slate-700/60">
+                            {getTxTypeLabel(tx.type)}
+                          </span>
+                        </div>
+
+                        {/* شبكة البيانات المطلوبة: اسم المحول، اسم المستلم، التاريخ، والعمولة */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          {/* 1. اسم المحول (المرسل) */}
+                          <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/90 flex items-start gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-cyan-500/15 text-cyan-400 flex items-center justify-center shrink-0 mt-0.5 border border-cyan-500/30">
+                              <User className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[10px] text-slate-400 block font-medium">اسم المحوّل (المرسل):</span>
+                              <span className="text-white font-bold text-xs break-words block mt-0.5">
+                                {tx.senderName || 'غير محدد'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* 2. اسم المستلم */}
+                          <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/90 flex items-start gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5 border border-emerald-500/30">
+                              <User className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[10px] text-slate-400 block font-medium">اسم المستلم:</span>
+                              <span className="text-white font-bold text-xs break-words block mt-0.5">
+                                {tx.recipientName || 'غير محدد'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* 3. تاريخ ووقت الحركة */}
+                          <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/90 flex items-start gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-indigo-500/15 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5 border border-indigo-500/30">
+                              <Calendar className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[10px] text-slate-400 block font-medium">تاريخ وتوقيت الحركة:</span>
+                              <span className="text-slate-200 font-bold font-num text-xs block mt-0.5" dir="rtl">
+                                {formatTransactionDate(tx.timestamp)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* 4. عمولة التحويل */}
+                          <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/90 flex items-start gap-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0 mt-0.5 border border-amber-500/30">
+                              <Percent className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[10px] text-slate-400 block font-medium">عمولة التحويل:</span>
+                              {typeof tx.fee === 'number' && tx.fee > 0 ? (
+                                <span className="text-amber-300 font-bold font-num text-xs block mt-0.5">
+                                  {tx.fee.toLocaleString()} ل.س (1% عائد إدارة كاش الحي)
+                                </span>
+                              ) : (
+                                <span className="text-emerald-400 font-bold text-xs block mt-0.5">
+                                  0 ل.س (معفاة بدون عمولة)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 5. سبب الدفع أو الاستلام (البيان الكامل بدون اقتصاص) */}
+                        <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800/90 flex items-start gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-violet-500/15 text-violet-400 flex items-center justify-center shrink-0 mt-0.5 border border-violet-500/30">
+                            <FileText className="w-3.5 h-3.5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[10px] text-slate-400 block font-medium">سبب الدفع أو الاستلام (البيان):</span>
+                            <div className="text-slate-100 font-medium text-xs mt-1 leading-relaxed bg-slate-900/90 p-2.5 rounded-lg border border-slate-800 break-words whitespace-pre-wrap">
+                              {tx.note && tx.note.trim() !== '' ? tx.note : 'لا يوجد بيان إضافي مسجل لهذه الحركة'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* تفاصيل المبالغ ورقم الإشعار وزر النسخ */}
+                        <div className="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800 flex flex-wrap items-center justify-between gap-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-slate-400 font-medium">كود الإشعار المرجعي:</span>
+                            <code className="text-xs font-mono font-bold text-teal-300 bg-slate-900 px-2.5 py-1 rounded-lg border border-slate-800">
+                              {tx.receiptCode}
+                            </code>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                copyTxReceipt(tx.receiptCode, tx.id);
+                              }}
+                              className="text-slate-400 hover:text-white bg-slate-850 hover:bg-slate-800 p-1.5 rounded-lg border border-slate-700/60 transition cursor-pointer"
+                              title="نسخ كود الإشعار"
+                            >
+                              {copiedTxCode === tx.id ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            {copiedTxCode === tx.id && (
+                              <span className="text-[10px] text-emerald-400 font-bold">تم النسخ!</span>
+                            )}
+                          </div>
+
+                          <div className="text-left text-xs font-num font-bold">
+                            {isIncome ? (
+                              <span className="text-emerald-400 text-sm">
+                                صافي الوارد إلى المحفظة: +{tx.amount.toLocaleString()} ل.س
+                              </span>
+                            ) : (
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-slate-300">
+                                  المبلغ المحول: {tx.amount.toLocaleString()} ل.س
+                                </span>
+                                {typeof tx.fee === 'number' && tx.fee > 0 && (
+                                  <span className="text-rose-400 font-black">
+                                    (المخصوم الكلي من رصيدك: {(tx.amount + tx.fee).toLocaleString()} ل.س)
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}

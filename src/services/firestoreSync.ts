@@ -10,12 +10,11 @@ import {
   orderBy,
   limit,
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, handleFirestoreError, OperationType } from './firebase';
 import {
   CommunityUser,
   AdminVault,
   LocalTransaction,
-  LocalWalletState,
 } from '../types/wallet';
 
 /**
@@ -40,7 +39,6 @@ let unsubVault: (() => void) | null = null;
  */
 export function startUsersRealtimeSync(callback: UsersCallback): () => void {
   if (unsubUsers) unsubUsers();
-
   const usersCol = collection(db, 'users');
   unsubUsers = onSnapshot(
     usersCol,
@@ -59,10 +57,9 @@ export function startUsersRealtimeSync(callback: UsersCallback): () => void {
       callback(liveUsers);
     },
     (err) => {
-      console.warn('Realtime users sync error:', err);
+      handleFirestoreError(err, OperationType.GET, 'users');
     }
   );
-
   return unsubUsers;
 }
 
@@ -71,7 +68,6 @@ export function startUsersRealtimeSync(callback: UsersCallback): () => void {
  */
 export function startTransactionsRealtimeSync(callback: TransactionsCallback): () => void {
   if (unsubTxs) unsubTxs();
-
   const txCol = collection(db, 'transactions');
   const q = query(txCol, orderBy('timestamp', 'desc'), limit(150));
   unsubTxs = onSnapshot(
@@ -85,10 +81,9 @@ export function startTransactionsRealtimeSync(callback: TransactionsCallback): (
       callback(liveTxs);
     },
     (err) => {
-      console.warn('Realtime transactions sync error:', err);
+      handleFirestoreError(err, OperationType.GET, 'transactions');
     }
   );
-
   return unsubTxs;
 }
 
@@ -97,7 +92,6 @@ export function startTransactionsRealtimeSync(callback: TransactionsCallback): (
  */
 export function startVaultRealtimeSync(callback: VaultCallback): () => void {
   if (unsubVault) unsubVault();
-
   const vaultDoc = doc(db, 'admin_vault', 'central');
   unsubVault = onSnapshot(
     vaultDoc,
@@ -106,10 +100,9 @@ export function startVaultRealtimeSync(callback: VaultCallback): () => void {
       callback(snapshot.data() as AdminVault);
     },
     (err) => {
-      console.warn('Realtime vault sync error:', err);
+      handleFirestoreError(err, OperationType.GET, 'admin_vault/central');
     }
   );
-
   return unsubVault;
 }
 
@@ -120,7 +113,7 @@ export async function syncUserToCloud(user: CommunityUser): Promise<void> {
   try {
     await setDoc(doc(db, 'users', user.id), user, { merge: true });
   } catch (err) {
-    console.error('Failed to sync user to Firestore:', err);
+    handleFirestoreError(err, OperationType.WRITE, `users/${user.id}`);
   }
 }
 
@@ -131,7 +124,7 @@ export async function syncTransactionToCloud(tx: LocalTransaction): Promise<void
   try {
     await setDoc(doc(db, 'transactions', tx.id), tx);
   } catch (err) {
-    console.error('Failed to sync transaction to Firestore:', err);
+    handleFirestoreError(err, OperationType.WRITE, `transactions/${tx.id}`);
   }
 }
 
@@ -142,7 +135,7 @@ export async function syncVaultToCloud(vault: AdminVault): Promise<void> {
   try {
     await setDoc(doc(db, 'admin_vault', 'central'), vault, { merge: true });
   } catch (err) {
-    console.error('Failed to sync vault to Firestore:', err);
+    handleFirestoreError(err, OperationType.WRITE, 'admin_vault/central');
   }
 }
 
@@ -181,9 +174,10 @@ export async function syncTransferBatchToCloud(params: {
     batch.set(doc(db, 'users', params.admin.id), params.admin, { merge: true });
     batch.set(doc(db, 'admin_vault', 'central'), params.adminVault, { merge: true });
     batch.set(doc(db, 'transactions', params.transaction.id), params.transaction);
+
     await batch.commit();
   } catch (err) {
-    console.error('Failed to sync transfer batch to Firestore:', err);
+    handleFirestoreError(err, OperationType.WRITE, 'batch/transfer');
   }
 }
 
@@ -206,11 +200,13 @@ export async function syncAdminCashActionToCloud(params: {
         }
       });
     }
+
     batch.set(doc(db, 'admin_vault', 'central'), params.adminVault, { merge: true });
     batch.set(doc(db, 'transactions', params.transaction.id), params.transaction);
+
     await batch.commit();
   } catch (err) {
-    console.error('Failed to sync cash action batch to Firestore:', err);
+    handleFirestoreError(err, OperationType.WRITE, 'batch/admin_cash');
   }
 }
 
@@ -227,7 +223,7 @@ export async function fetchAllUsersNow(): Promise<CommunityUser[]> {
     });
     return list;
   } catch (e) {
-    console.warn('fetchAllUsersNow error:', e);
+    handleFirestoreError(e, OperationType.LIST, 'users');
     return [];
   }
 }
@@ -246,7 +242,7 @@ export async function fetchAllTransactionsNow(): Promise<LocalTransaction[]> {
     });
     return list;
   } catch (e) {
-    console.warn('fetchAllTransactionsNow error:', e);
+    handleFirestoreError(e, OperationType.LIST, 'transactions');
     return [];
   }
 }
@@ -260,7 +256,7 @@ export async function fetchVaultNow(): Promise<AdminVault | null> {
     if (!snap.exists()) return null;
     return snap.data() as AdminVault;
   } catch (e) {
-    console.warn('fetchVaultNow error:', e);
+    handleFirestoreError(e, OperationType.GET, 'admin_vault/central');
     return null;
   }
 }

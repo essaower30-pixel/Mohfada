@@ -44,6 +44,7 @@ import { LocalTransaction, SavedContact } from '../types/wallet';
 import { AdminProfileModal } from './AdminProfileModal';
 import { UserProfileModal } from './UserProfileModal';
 import { ShareAppModal } from './ShareAppModal';
+import { TransactionReceiptModal } from './TransactionReceiptModal';
 import { WhatsAppActionButtons } from '../utils/whatsapp';
 
 
@@ -119,6 +120,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
   // Transaction details expand states (Eye icon toggle)
   const [expandedTxIds, setExpandedTxIds] = useState<Record<string, boolean>>({});
   const [copiedTxCode, setCopiedTxCode] = useState<string | null>(null);
+  const [receiptModalTx, setReceiptModalTx] = useState<LocalTransaction | null>(null);
 
   const toggleTxExpand = (txId: string) => {
     setExpandedTxIds((prev) => ({
@@ -343,6 +345,7 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
       setPayIdentifier('');
       setPayNote('');
       setSaveToQuickPay(false);
+      setReceiptModalTx(res.tx);
       setToastMsg(`تم بنجاح دفع ${amt.toLocaleString()} ل.س إلى (${res.tx.recipientName})`);
       setTimeout(() => setToastMsg(''), 4500);
     } else {
@@ -1078,6 +1081,21 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
                             )}
                           </div>
                         </div>
+
+                        {/* زر إرسال إيصال بنكي كصورة عبر الواتس (مثل البنك التجاري) */}
+                        <div className="pt-2 border-t border-slate-800/80">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setReceiptModalTx(tx);
+                            }}
+                            className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-400 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-950/40 active:scale-[0.98] transition cursor-pointer"
+                          >
+                            <Share2 className="w-4 h-4 shrink-0" />
+                            <span>🧾 إرسال إيصال بنكي كصورة عبر الواتس (Al-Tijari Style)</span>
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1685,6 +1703,14 @@ export const UserWalletView: React.FC<UserWalletViewProps> = ({
       <ShareAppModal
         isOpen={showShareAppModal}
         onClose={() => setShowShareAppModal(false)}
+      />
+
+      {/* Transaction Banking Receipt Modal (Al-Tijari Style with Image Share to WhatsApp) */}
+      <TransactionReceiptModal
+        isOpen={!!receiptModalTx}
+        onClose={() => setReceiptModalTx(null)}
+        transaction={receiptModalTx}
+        currentUser={currentUser}
       />
     </div>
   );

@@ -28,10 +28,16 @@ import {
 
 const STORAGE_KEY = 'pocket_cash_community_wallet_v11';
 const LEGACY_STORAGE_KEY = 'pocket_cash_community_wallet_v8';
+export const SESSION_USER_KEY = 'pocket_cash_active_session_user_id';
 
 function getInitialState(): LocalWalletState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
+    // Retrieve persistent session user ID
+    const sessionUserId = typeof window !== 'undefined'
+      ? (localStorage.getItem(SESSION_USER_KEY) || localStorage.getItem('pocket_cash_last_user_id'))
+      : null;
+
     if (raw) {
       const parsed = JSON.parse(raw);
       // Ensure admin has username: 'admin' and address if not present
@@ -65,12 +71,19 @@ function getInitialState(): LocalWalletState {
         });
         parsed.users = synchronizePhoneData(parsed.users);
       }
-      // CRITICAL: NEVER auto-login as 'usr_ahmad' (عيسى عوير). On new install or legacy mock state, keep currentUserId null!
-      const curUser = (parsed.currentUserId && parsed.currentUserId !== 'usr_ahmad')
-        ? parsed.users?.find((u: CommunityUser) => u.id === parsed.currentUserId) || null
+
+      // Persist authenticated user session across page refreshes:
+      // If user logged in (sessionUserId or parsed.currentUserId), keep them logged in!
+      const targetUserId = sessionUserId || parsed.currentUserId;
+      const curUser = targetUserId
+        ? parsed.users?.find((u: CommunityUser) => u.id === targetUserId) ||
+          INITIAL_USERS.find((u) => u.id === targetUserId) ||
+          null
         : null;
+
       parsed.currentUserId = curUser ? curUser.id : null;
       parsed.activeView = curUser?.role === 'admin' ? 'admin' : 'wallet';
+
       parsed.adminVault = {
         ...INITIAL_ADMIN_VAULT,
         ...parsed.adminVault,
@@ -87,13 +100,26 @@ function getInitialState(): LocalWalletState {
       }
       return parsed;
     }
+
+    // First time load with no storage yet:
+    const initialCurUser = sessionUserId
+      ? INITIAL_USERS.find((u) => u.id === sessionUserId) || null
+      : null;
+
+    return {
+      users: INITIAL_USERS,
+      currentUserId: initialCurUser ? initialCurUser.id : null,
+      adminVault: INITIAL_ADMIN_VAULT,
+      transactions: INITIAL_TRANSACTIONS,
+      activeView: initialCurUser?.role === 'admin' ? 'admin' : 'wallet',
+    };
   } catch (err) {
     console.error('Error reading local storage', err);
   }
 
   return {
     users: INITIAL_USERS,
-    currentUserId: null, // First-time installation / new user: NO default user! Registration screen appears empty!
+    currentUserId: null,
     adminVault: INITIAL_ADMIN_VAULT,
     transactions: INITIAL_TRANSACTIONS,
     activeView: 'wallet',
@@ -385,14 +411,15 @@ export function useCommunityWallet() {
 
   const switchUser = (userId: string) => {
     const targetUser = state.users.find((u) => u.id === userId);
-    if (targetUser && targetUser.phone) {
-      try {
+    try {
+      localStorage.setItem(SESSION_USER_KEY, userId);
+      if (targetUser && targetUser.phone) {
         localStorage.setItem('pocket_cash_last_user_phone', targetUser.phone);
         localStorage.setItem('pocket_cash_last_user_name', targetUser.shopName || targetUser.name);
         localStorage.setItem('pocket_cash_last_user_id', targetUser.id);
-      } catch (e) {
-        console.error('Error saving remembered user', e);
       }
+    } catch (e) {
+      console.error('Error saving remembered user', e);
     }
     updateState((prev) => ({
       ...prev,
@@ -402,14 +429,15 @@ export function useCommunityWallet() {
   };
 
   const logout = () => {
-    if (currentUser && currentUser.phone) {
-      try {
+    try {
+      localStorage.removeItem(SESSION_USER_KEY);
+      localStorage.removeItem('pocket_cash_last_user_id');
+      if (currentUser && currentUser.phone) {
         localStorage.setItem('pocket_cash_last_user_phone', currentUser.phone);
         localStorage.setItem('pocket_cash_last_user_name', currentUser.shopName || currentUser.name);
-        localStorage.setItem('pocket_cash_last_user_id', currentUser.id);
-      } catch (e) {
-        console.error('Error saving remembered user on logout', e);
       }
+    } catch (e) {
+      console.error('Error clearing session on logout', e);
     }
     updateState((prev) => ({
       ...prev,
@@ -987,6 +1015,7 @@ export function useCommunityWallet() {
 
     // Realtime Cloud Sync of newly registered user
     try {
+      localStorage.setItem(SESSION_USER_KEY, newUser.id);
       localStorage.setItem('pocket_cash_last_user_phone', newUser.phone);
       localStorage.setItem('pocket_cash_last_user_name', newUser.shopName || newUser.name);
       localStorage.setItem('pocket_cash_last_user_id', newUser.id);

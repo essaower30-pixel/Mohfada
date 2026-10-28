@@ -51,6 +51,8 @@ import { usePWAInstall } from '../hooks/usePWAInstall';
 import { CommunityUser } from '../types/wallet';
 import { ChangePasswordModal } from './ChangePasswordModal';
 import { AdminProfileModal } from './AdminProfileModal';
+import { TransactionReceiptModal } from './TransactionReceiptModal';
+import { LocalTransaction } from '../types/wallet';
 
 const DEFAULT_AVATARS = [
   'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
@@ -75,6 +77,7 @@ export const AdminPortal: React.FC = () => {
   const { isInstallable, triggerInstall } = usePWAInstall();
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [showEditProfile, setShowEditProfile] = useState(false);
+  const [adminReceiptTx, setAdminReceiptTx] = useState<LocalTransaction | null>(null);
   const [activeTab, setActiveTab] = useState<'charge' | 'withdraw' | 'new_user' | 'lookup' | 'reports' | 'install_qr' | 'edit_profile'>('charge');
   const tabContentRef = React.useRef<HTMLDivElement>(null);
 
@@ -1968,6 +1971,19 @@ export const AdminPortal: React.FC = () => {
                             <span className="text-amber-400">+{tx.fee?.toLocaleString()} ل.س</span>
                           </div>
                         )}
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAdminReceiptTx(tx);
+                          }}
+                          className="mt-2 w-full py-1 px-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold flex items-center justify-center gap-1 transition cursor-pointer"
+                          title="مشاركة إيصال بنكي كصورة عبر الواتساب (Al-Tijari Style)"
+                        >
+                          <Share2 className="w-3 h-3" />
+                          <span>إيصال صورة للواتس</span>
+                        </button>
                       </div>
                     </div>
                   );
@@ -2666,6 +2682,13 @@ export const AdminPortal: React.FC = () => {
           </button>
         </div>
       </nav>
+
+      {/* Admin Banking Receipt Modal (Al-Tijari Style with Image Share to WhatsApp) */}
+      <TransactionReceiptModal
+        isOpen={!!adminReceiptTx}
+        onClose={() => setAdminReceiptTx(null)}
+        transaction={adminReceiptTx}
+      />
     </div>
   );
 };
